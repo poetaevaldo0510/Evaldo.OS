@@ -3,8 +3,12 @@ import {
   Play, Pause, Wind, ShieldAlert, Store, BookOpen, Brain, Battery, Zap, Activity, 
   Menu, X, User, Trees, Hourglass, ScrollText, BarChart3, Terminal, Send, Lock, 
   Map, Users, Handshake, Milestone, Check, ArrowRight, Save, Briefcase, Code2, 
-  FileText, Layout, Presentation, Database, Sun, Trash2
+  FileText, Layout, Presentation, Database, Sun, Trash2, HeartPulse, Calendar,
+  Sparkles, MessageCircle, Mic, RefreshCw, Copy, Heart, ChevronRight, GraduationCap, 
+  Lightbulb, CheckCircle2, XCircle, Eye, Music, Trophy, Flame, Feather, BarChart2, 
+  Volume2, Target, Gem, Mountain, Shield, Star
 } from 'lucide-react';
+import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
 // --- TYPES & INTERFACES ---
 
@@ -23,6 +27,7 @@ interface MyApp {
   progress: number;
   color: string;
   statusColor: string;
+  action?: string; // Action trigger for specific apps
 }
 
 interface SOSItem {
@@ -48,6 +53,32 @@ interface Feature {
   releaseDate: string;
   icon: React.ElementType;
 }
+
+// Sales Alchemist Types
+type Module = {
+  id: number;
+  title: string;
+  description: string;
+  locked: boolean;
+  content?: React.ReactNode;
+};
+
+type Card = {
+  id: string;
+  name: string;
+  type: 'Habilidade' | 'Produto' | 'Cliente';
+  rarity: 'Comum' | 'Rara' | 'Lendária';
+  description: string;
+};
+
+type Region = {
+  id: number;
+  name: string;
+  desc: string;
+  levelReq: number;
+  icon: React.ReactNode;
+  color: string;
+};
 
 // --- GLOBAL STYLES ---
 
@@ -83,33 +114,25 @@ const GlobalStyles = () => (
       background: rgba(20, 20, 20, 0.8);
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    @keyframes pulse-gold {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); }
-    }
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes pulse-gold { 0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); } }
+    @keyframes wave { 0%, 100% { height: 20%; } 50% { height: 80%; } }
+    @keyframes ping-slow { 75%, 100% { transform: scale(1.5); opacity: 0; } }
 
     .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
     .animate-slideUp { animation: slideUp 0.4s ease-out forwards; }
+    .animate-slideDown { animation: slideDown 0.3s ease-out forwards; }
+    .animate-slideIn { animation: slideIn 0.3s ease-out forwards; }
     .animate-pulse-gold { animation: pulse-gold 2s infinite; }
+    .animate-wave { animation: wave 1s ease-in-out infinite; }
+    .animate-ping-slow { animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
     
-    .typing-cursor::after {
-      content: '|';
-      animation: blink 1s step-start infinite;
-    }
-    
-    @keyframes blink {
-      50% { opacity: 0; }
-    }
+    .typing-cursor::after { content: '|'; animation: blink 1s step-start infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
 
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
@@ -149,6 +172,492 @@ const Typewriter = ({ text, onComplete }: { text: string, onComplete?: () => voi
   return <span>{displayedText}</span>;
 };
 
+// --- SALES ALCHEMIST APP COMPONENTS ---
+
+const SalesAlchemistApp = ({ onExit }: { onExit: () => void }) => {
+  const [activeMode, setActiveMode] = useState<'alchemist' | 'oracle' | 'academy' | 'sanctuary' | 'profile'>('alchemist');
+  const [xp, setXp] = useState(120);
+  const [level, setLevel] = useState(1);
+  const [notifications, setNotifications] = useState<string[]>([]);
+
+  // Simulação de Sistema de Nível
+  const xpToNextLevel = level * 100;
+  const progress = (xp / xpToNextLevel) * 100;
+
+  const addXp = (amount: number) => {
+    const newXp = xp + amount;
+    if (newXp >= xpToNextLevel) {
+      setLevel(l => l + 1);
+      setXp(newXp - xpToNextLevel);
+      addNotification(`Parabéns! Você subiu para o Nível ${level + 1}!`);
+    } else {
+      setXp(newXp);
+      addNotification(`+${amount} XP`);
+    }
+  };
+
+  const addNotification = (msg: string) => {
+    setNotifications(prev => [...prev, msg]);
+    setTimeout(() => setNotifications(prev => prev.slice(1)), 4000);
+  };
+  
+  return (
+    <div className="h-full bg-slate-950 text-slate-100 font-sans selection:bg-purple-500 selection:text-white flex flex-col overflow-hidden">
+      
+      {/* Notifications Overlay */}
+      <div className="absolute top-20 right-4 z-50 space-y-2 pointer-events-none">
+        {notifications.map((msg, i) => (
+          <div key={i} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg animate-slideIn flex items-center gap-2 text-sm">
+            <Trophy size={14} className="text-yellow-300" /> {msg}
+          </div>
+        ))}
+      </div>
+
+      {/* Mystic Header */}
+      <header className="border-b border-white/10 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 shrink-0">
+        <div className="px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+             <button onClick={onExit} className="p-2 -ml-2 text-slate-400 hover:text-white"><ArrowRight className="w-5 h-5 rotate-180" /></button>
+             <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-purple-500/20 ring-1 ring-white/20">
+                  <Sparkles size={16} className="text-white" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm tracking-tight block leading-none text-white">Sales<span className="text-purple-400">Alchemist</span></span>
+                  <span className="text-[9px] text-slate-400 uppercase tracking-widest">O Despertar</span>
+                </div>
+             </div>
+          </div>
+          
+          <div 
+            onClick={() => setActiveMode('profile')}
+            className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 transition-colors py-1.5 px-3 rounded-xl border border-white/10 cursor-pointer flex-shrink-0"
+          >
+            <div className="text-right">
+              <div className="text-[10px] text-purple-300 font-bold">Nível {level}</div>
+              <div className="w-16 h-1 bg-slate-700 rounded-full mt-1 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: `${progress}%` }}></div>
+              </div>
+            </div>
+            <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center border-2 border-slate-900 ring-2 ring-purple-500/30">
+              <User size={14} />
+            </div>
+          </div>
+        </div>
+        
+        {/* Navigation Bar */}
+        <div className="px-2 pb-2 overflow-x-auto scrollbar-hide">
+          <nav className="flex items-center gap-1 min-w-max">
+            <NavBtn active={activeMode === 'alchemist'} onClick={() => setActiveMode('alchemist')} icon={<Zap size={16}/>} label="Transmutar" />
+            <NavBtn active={activeMode === 'oracle'} onClick={() => setActiveMode('oracle')} icon={<MessageCircle size={16}/>} label="Oráculo" />
+            <NavBtn active={activeMode === 'academy'} onClick={() => setActiveMode('academy')} icon={<GraduationCap size={16}/>} label="Academia" />
+            <NavBtn active={activeMode === 'sanctuary'} onClick={() => setActiveMode('sanctuary')} icon={<Wind size={16}/>} label="Santuário" />
+          </nav>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto p-4 scrollbar-hide pb-24">
+        {activeMode === 'alchemist' && <TheAlchemist onAction={() => addXp(10)} />}
+        {activeMode === 'oracle' && <TheOracle onAction={() => addXp(5)} />}
+        {activeMode === 'academy' && <TheAcademy onCompleteModule={() => addXp(50)} />}
+        {activeMode === 'sanctuary' && <TheSanctuary onAction={() => addXp(20)} />}
+        {activeMode === 'profile' && <TheProfile level={level} xp={xp} />}
+      </main>
+    </div>
+  );
+}
+
+function NavBtn({ active, onClick, icon, label }: any) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-all text-xs font-medium whitespace-nowrap ${
+        active 
+          ? 'bg-slate-700 text-white shadow-sm' 
+          : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+      }`}
+    >
+      {icon} <span>{label}</span>
+    </button>
+  );
+}
+
+function TheProfile({ level, xp }: { level: number, xp: number }) {
+  const cards: Card[] = [
+    { id: '1', name: 'Metáfora da Cura', type: 'Habilidade', rarity: 'Comum', description: 'Transforma dor em poesia.' },
+    { id: '2', name: 'Escudo Empático', type: 'Habilidade', rarity: 'Rara', description: 'Protege contra rejeição.' },
+    { id: '3', name: 'Cliente Visionário', type: 'Cliente', rarity: 'Lendária', description: 'Compra ideias, não preços.' },
+  ];
+
+  const regions: Region[] = [
+    { id: 1, name: "Cidade Inicial", desc: "Onde tudo começa.", levelReq: 1, icon: <Store size={16}/>, color: "text-blue-400" },
+    { id: 2, name: "Cidade Mercantil", desc: "Mercados agitados.", levelReq: 2, icon: <Target size={16}/>, color: "text-emerald-400" },
+    { id: 3, name: "Floresta Mística", desc: "Use a intuição.", levelReq: 5, icon: <Trees size={16}/>, color: "text-purple-400" },
+    { id: 4, name: "Vale dos Artesãos", desc: "Detalhe e qualidade.", levelReq: 8, icon: <Gem size={16}/>, color: "text-pink-400" },
+    { id: 5, name: "Pico do Sucesso", desc: "Alta performance.", levelReq: 10, icon: <Mountain size={16}/>, color: "text-amber-400" },
+  ];
+
+  const currentRegion = regions.filter(r => level >= r.levelReq).pop() || regions[0];
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5"><Trophy size={100} /></div>
+        <div className="relative z-10 text-center">
+          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-xl shadow-purple-900/50 mb-4 ring-4 ring-white/10">
+            <User size={32} className="text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Vendedor Alquimista</h2>
+          <p className="text-purple-400 text-xs font-medium uppercase tracking-wider mb-6">Nível {level}</p>
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-white/5 space-y-4">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">XP Atual</span>
+              <span className="text-white font-bold">{xp}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Região Atual</span>
+              <span className={`font-bold flex items-center gap-1 ${currentRegion.color}`}>{currentRegion.icon} {currentRegion.name}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-slate-900 to-indigo-950 border border-white/10 rounded-3xl p-6">
+          <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-sm"><Map size={16}/> Mapa da Jornada</h3>
+          <div className="space-y-4 relative">
+            <div className="absolute left-3.5 top-4 bottom-4 w-0.5 bg-slate-800"></div>
+            {regions.map((region) => {
+              const isUnlocked = level >= region.levelReq;
+              const isCurrent = currentRegion.id === region.id;
+              return (
+                <div key={region.id} className={`relative flex items-center gap-3 ${isUnlocked ? 'opacity-100' : 'opacity-40 grayscale'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 border-2 ${isCurrent ? 'bg-white border-purple-500 text-purple-600 shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-110' : isUnlocked ? 'bg-slate-800 border-indigo-500 text-indigo-400' : 'bg-slate-900 border-slate-700 text-slate-600'}`}>
+                      {isUnlocked ? region.icon : <Lock size={12}/>}
+                    </div>
+                    <div>
+                      <h4 className={`text-xs font-bold ${isCurrent ? 'text-white' : 'text-slate-300'}`}>{region.name}</h4>
+                      <p className="text-[9px] text-slate-500 leading-tight">{isUnlocked ? region.desc : `Nível ${region.levelReq}`}</p>
+                    </div>
+                </div>
+              );
+            })}
+          </div>
+      </div>
+      
+      <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-yellow-500">Baralho de Poder</span>
+            </h3>
+            <span className="text-[10px] text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-white/10">3 / 50</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {cards.map(card => (
+              <div key={card.id} className="group relative bg-slate-800 rounded-xl border border-slate-700 p-3 hover:-translate-y-1 transition-all hover:shadow-xl hover:shadow-purple-900/20 cursor-pointer overflow-hidden">
+                <div className={`absolute top-0 left-0 w-full h-1 ${card.rarity === 'Lendária' ? 'bg-amber-400' : card.rarity === 'Rara' ? 'bg-blue-400' : 'bg-slate-500'}`}></div>
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-full ${card.type === 'Habilidade' ? 'bg-purple-900/50 text-purple-300' : 'bg-green-900/50 text-green-300'}`}>{card.type}</span>
+                </div>
+                <h4 className="font-bold text-slate-200 mb-1 text-sm">{card.name}</h4>
+                <p className="text-[10px] text-slate-500 leading-relaxed">{card.description}</p>
+              </div>
+            ))}
+          </div>
+      </div>
+    </div>
+  );
+}
+
+function TheAcademy({ onCompleteModule }: { onCompleteModule: () => void }) {
+  const [activeModule, setActiveModule] = useState<number | null>(null);
+  const [burning, setBurning] = useState(false);
+  const [burned, setBurned] = useState(false);
+  const [affirmation, setAffirmation] = useState('');
+  const [hypnosisAnswer, setHypnosisAnswer] = useState<string | null>(null);
+
+  const handleBurn = () => {
+    setBurning(true);
+    setTimeout(() => {
+      setBurning(false);
+      setBurned(true);
+      onCompleteModule();
+    }, 2500);
+  };
+
+  const modules: Module[] = [
+    {
+      id: 1, title: "Módulo 1: O Despertar Poético", description: "Vendas Poéticas e o poder da linguagem.", locked: false,
+      content: (
+        <div className="space-y-6">
+          <div className="bg-slate-900/50 p-4 rounded-xl border border-white/5">
+            <h4 className="font-bold text-sm text-purple-300 mb-2">A Linguagem Poética</h4>
+            <p className="text-slate-300 text-xs leading-relaxed mb-4">Vendas Poéticas não é sobre rimar, é sobre ressonar. Quando você usa metáforas, você burla o "fator crítico".</p>
+            <div className="space-y-2 mt-4">
+              <div className="bg-slate-800 p-3 rounded-lg border-l-2 border-red-500"><span className="text-[10px] font-bold text-red-400 uppercase">Comum</span><p className="text-xs mt-1 text-slate-400">"Este seguro paga R$ 500 mil."</p></div>
+              <div className="bg-slate-800 p-3 rounded-lg border-l-2 border-green-500"><span className="text-[10px] font-bold text-green-400 uppercase">Poético</span><p className="text-xs mt-1 text-slate-300">"Este contrato é uma carta de amor póstuma."</p></div>
+            </div>
+          </div>
+          <button onClick={onCompleteModule} className="w-full bg-purple-600 hover:bg-purple-500 text-white px-4 py-3 rounded-lg text-xs font-bold transition-colors">Concluir Lição (+50 XP)</button>
+        </div>
+      )
+    },
+    {
+      id: 2, title: "Módulo 2: Encantando os Sentidos", description: "Visão, audição e tato na oferta.", locked: false,
+      content: (
+         <div className="space-y-4">
+           <div className="bg-slate-900/50 p-4 rounded-xl border border-white/5">
+             <h4 className="font-bold text-sm text-blue-300 mb-2 flex items-center gap-2"><Eye size={14}/> Pintando com Palavras</h4>
+             <p className="text-slate-300 text-xs mb-4">Não diga apenas "é confortável". Diga "é como ser abraçado por uma nuvem".</p>
+           </div>
+           <div className="bg-slate-800 p-4 rounded-xl">
+             <h4 className="font-bold text-xs mb-2">Exercício: Ative os Sentidos</h4>
+             <div className="space-y-2">
+               <button className="w-full text-left p-3 rounded bg-slate-900 border border-white/5 text-xs text-slate-400">"Ele é rápido."</button>
+               <button onClick={onCompleteModule} className="w-full text-left p-3 rounded bg-slate-900 hover:bg-green-900/30 border border-green-500/30 text-xs text-white transition-colors group">"É como piscar os olhos e ver tudo resolvido." <CheckCircle2 size={12} className="inline ml-2 opacity-0 group-hover:opacity-100 text-green-400"/></button>
+             </div>
+           </div>
+         </div>
+      )
+    },
+    {
+        id: 3, title: "Módulo 3: Autoimagem do Vendedor", description: "Liberando o Guardião.", locked: false,
+        content: (
+          <div className="space-y-4">
+            {!burned ? (
+              <div className="bg-orange-900/10 p-4 rounded-xl border border-orange-500/30 text-center">
+                <h4 className="font-bold text-orange-400 mb-2 flex items-center justify-center gap-2 text-sm"><Flame size={14}/> Ritual da Queima</h4>
+                <p className="text-xs text-slate-300 mb-3">Escreva o medo que te impede de vender.</p>
+                <input className="w-full bg-slate-900 border border-orange-500/20 rounded p-2 text-xs text-white mb-4 placeholder:text-slate-600 focus:border-orange-500 outline-none" placeholder="Ex: Medo de cobrar caro..." />
+                <button onClick={handleBurn} disabled={burning} className={`w-full py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition-all text-xs ${burning ? 'bg-orange-800 text-orange-200' : 'bg-gradient-to-r from-orange-600 to-red-600 text-white'}`}>{burning ? <><RefreshCw className="animate-spin" size={12}/> Queimando...</> : <><Flame size={12}/> Queimar Crença</>}</button>
+              </div>
+            ) : (
+              <div className="bg-green-900/10 p-4 rounded-xl border border-green-500/30 text-center animate-fade-in">
+                <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2 text-green-400"><Feather size={24} /></div>
+                <h4 className="font-bold text-green-400 text-sm mb-1">Você está livre.</h4>
+                <input value={affirmation} onChange={(e) => setAffirmation(e.target.value)} className="w-full bg-transparent text-center font-serif text-white outline-none text-sm" placeholder="Eu mereço prosperar..." />
+              </div>
+            )}
+          </div>
+        )
+      }
+  ];
+
+  return (
+    <div className="space-y-6 animate-fadeIn pb-20">
+      <div className="text-center space-y-2 mb-6">
+        <h1 className="text-2xl font-bold text-white">Academia da Alma</h1>
+        <p className="text-slate-400 text-xs">Do Vendedor Iniciante à Lenda.</p>
+      </div>
+      <div className="grid gap-4">
+        {modules.map((mod) => (
+          <div key={mod.id} className={`border rounded-xl transition-all ${activeModule === mod.id ? 'bg-slate-800 border-purple-500/50' : 'bg-slate-900 border-white/5'}`}>
+            <div onClick={() => !mod.locked && setActiveModule(activeModule === mod.id ? null : mod.id)} className={`p-4 flex items-center justify-between cursor-pointer ${mod.locked ? 'opacity-50' : ''}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${mod.locked ? 'bg-slate-800 text-slate-600' : 'bg-purple-900/30 text-purple-400'}`}>{mod.locked ? <Lock size={14} /> : <BookOpen size={14} />}</div>
+                <div><h3 className="font-bold text-sm text-slate-200">{mod.title}</h3></div>
+              </div>
+              <ChevronRight size={16} className={`text-slate-500 transition-transform ${activeModule === mod.id ? 'rotate-90' : ''}`} />
+            </div>
+            {activeModule === mod.id && mod.content && <div className="px-4 pb-4 pt-0 animate-slideDown border-t border-white/5 mt-2"><div className="pt-4">{mod.content}</div></div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TheAlchemist({ onAction }: { onAction: () => void }) {
+  const [mode, setMode] = useState<'rewrite' | 'sensory'>('rewrite');
+  const [input, setInput] = useState('');
+  const [intention, setIntention] = useState<'comfort' | 'inspire' | 'challenge'>('comfort');
+  const [isTransmuting, setIsTransmuting] = useState(false);
+  const [results, setResults] = useState<any[]>([]);
+  const [sensoryData, setSensoryData] = useState({ visual: '', auditory: '', kinesthetic: '' });
+
+  const handleSensoryGenerate = () => {
+    setIsTransmuting(true);
+    setTimeout(() => {
+      const poeticDesc = `Imagine ver ${sensoryData.visual || 'um horizonte claro'}. Ouça o som de ${sensoryData.auditory || 'silêncio e paz'}. Sinta como se ${sensoryData.kinesthetic || 'um peso saísse dos ombros'}. É isso que este produto oferece.`;
+      setResults([{ tone: "Descricao Multissensorial", icon: <Eye size={14}/>, text: poeticDesc }]);
+      setIsTransmuting(false);
+      onAction();
+    }, 1500);
+  }
+
+  const handleTransmute = () => {
+    if (!input) return;
+    setIsTransmuting(true);
+    setResults([]); 
+    setTimeout(() => {
+      let generated = [];
+      const item = input;
+      if (intention === 'comfort') {
+        generated = [
+          { tone: "Acolhimento Profundo", icon: <Shield size={14} className="text-emerald-400" />, text: `Sei que o medo de investir em ${item} é real. Mas pense nisto como um porto seguro.` },
+          { tone: "Validação Emocional", icon: <Heart size={14} className="text-pink-400" />, text: `${item} não é um custo, é o carinho que você tem negado a si mesmo.` }
+        ];
+      } else if (intention === 'inspire') {
+        generated = [
+          { tone: "Visão de Futuro", icon: <Star size={14} className="text-purple-400" />, text: `Não olhe para o custo de ${item}. Olhe para quem você se tornará.` },
+          { tone: "Despertar do Sonho", icon: <Sparkles size={14} className="text-yellow-400" />, text: `${item} é a ponte entre a sua rotina e o seu sonho.` }
+        ];
+      } else { 
+        generated = [
+          { tone: "Chamado à Ação", icon: <Zap size={14} className="text-amber-400" />, text: `O mundo continua girando enquanto você pensa. ${item} é sobre parar de adiar.` },
+          { tone: "Custo da Inação", icon: <Activity size={14} className="text-red-400" />, text: `Quanto custa continuar com essa dor? ${item} é barato comparado a isso.` }
+        ];
+      }
+      setResults(generated);
+      setIsTransmuting(false);
+      onAction();
+    }, 1500);
+  };
+  
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="flex justify-center gap-4 mb-4">
+        <button onClick={() => setMode('rewrite')} className={`pb-2 border-b-2 px-4 text-xs ${mode === 'rewrite' ? 'border-purple-500 text-white' : 'border-transparent text-slate-500'}`}>Reescrita Poética</button>
+        <button onClick={() => setMode('sensory')} className={`pb-2 border-b-2 px-4 text-xs ${mode === 'sensory' ? 'border-purple-500 text-white' : 'border-transparent text-slate-500'}`}>Lab. Sensorial</button>
+      </div>
+
+      {mode === 'rewrite' ? (
+        <div className="space-y-4">
+           <div className="grid grid-cols-3 gap-2 mb-4">
+              <button onClick={() => setIntention('comfort')} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${intention === 'comfort' ? 'bg-emerald-900/30 border-emerald-500 text-emerald-300' : 'bg-slate-900 border-white/5 text-slate-500 hover:bg-slate-800'}`}><Shield size={16}/><span className="text-[10px] font-bold uppercase">Acolher</span></button>
+              <button onClick={() => setIntention('inspire')} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${intention === 'inspire' ? 'bg-purple-900/30 border-purple-500 text-purple-300' : 'bg-slate-900 border-white/5 text-slate-500 hover:bg-slate-800'}`}><Star size={16}/><span className="text-[10px] font-bold uppercase">Inspirar</span></button>
+              <button onClick={() => setIntention('challenge')} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${intention === 'challenge' ? 'bg-amber-900/30 border-amber-500 text-amber-300' : 'bg-slate-900 border-white/5 text-slate-500 hover:bg-slate-800'}`}><Zap size={16}/><span className="text-[10px] font-bold uppercase">Desafiar</span></button>
+           </div>
+          <div className="bg-slate-800 rounded-xl p-1 border border-white/10">
+            <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder={`O que você vende? Ex: "Curso de Liderança"`} className="w-full bg-slate-900/50 text-slate-200 p-4 rounded-lg focus:outline-none min-h-[100px] resize-none text-sm"/>
+            <div className="flex justify-end p-2">
+              <button onClick={handleTransmute} disabled={isTransmuting || !input} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-purple-500 transition-all disabled:opacity-50 text-xs">
+                {isTransmuting ? <RefreshCw className="animate-spin" size={14}/> : <Sparkles size={14}/>} {isTransmuting ? '...' : 'Transmutar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4 bg-slate-900 p-4 rounded-2xl border border-white/10">
+          <div className="space-y-2"><label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1"><Eye size={10}/> Visual</label><input value={sensoryData.visual} onChange={e => setSensoryData({...sensoryData, visual: e.target.value})} className="w-full bg-slate-800 border border-white/5 rounded p-2 text-xs" placeholder="Ex: Um futuro brilhante..." /></div>
+          <div className="space-y-2"><label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1"><Music size={10}/> Auditivo</label><input value={sensoryData.auditory} onChange={e => setSensoryData({...sensoryData, auditory: e.target.value})} className="w-full bg-slate-800 border border-white/5 rounded p-2 text-xs" placeholder="Ex: O silêncio da paz..." /></div>
+          <div className="space-y-2"><label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1"><Wind size={10}/> Cinestésico</label><input value={sensoryData.kinesthetic} onChange={e => setSensoryData({...sensoryData, kinesthetic: e.target.value})} className="w-full bg-slate-800 border border-white/5 rounded p-2 text-xs" placeholder="Ex: Leveza nos ombros..." /></div>
+          <button onClick={handleSensoryGenerate} className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold text-white transition-colors text-xs">Gerar Descrição</button>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div className="grid gap-4 mt-6">
+          {results.map((res, idx) => (
+            <div key={idx} className="bg-slate-800/50 border border-white/5 rounded-xl p-4 animate-slideUp">
+               <div className="flex items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider text-purple-400">{res.icon} {res.tone}</div>
+               <p className="text-sm text-slate-200">{res.text}</p>
+               <button onClick={() => navigator.clipboard.writeText(res.text)} className="mt-3 flex items-center gap-1 text-[10px] text-slate-500 hover:text-white"><Copy size={12} /> Copiar</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TheOracle({ onAction }: { onAction: () => void }) {
+  const [messages, setMessages] = useState<{role: 'user'|'bot', text: string}[]>([{role: 'bot', text: 'Qual pedra está no caminho? (Ex: "Está caro")'}]);
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const handleSend = () => {
+    if(!input.trim()) return;
+    setMessages(prev => [...prev, {role: 'user', text: input}]);
+    const lower = input.toLowerCase();
+    setInput('');
+    onAction();
+    setTimeout(() => {
+      let reply = "Respire. Pergunte ao coração dele o que o impede.";
+      if(lower.includes('caro')) reply = "Não fale de preço. Pergunte: 'Quanto custa continuar carregando essa dor?'";
+      else if(lower.includes('pensar')) reply = "Pensar é o refúgio do medo. Diga: 'O que o seu medo precisa ouvir para deixar sua coragem agir?'";
+      setMessages(prev => [...prev, {role: 'bot', text: reply}]);
+    }, 800);
+  };
+
+  return (
+    <div className="h-[400px] bg-slate-900 rounded-2xl border border-white/10 flex flex-col overflow-hidden animate-fadeIn">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] p-3 rounded-xl text-xs ${m.role === 'user' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300'}`}>{m.text}</div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      <div className="p-3 bg-slate-800 border-t border-white/5 flex gap-2">
+        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="O cliente disse..." className="flex-1 bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-purple-500 outline-none text-white" />
+        <button onClick={handleSend} className="bg-purple-600 p-2 rounded-lg text-white hover:bg-purple-500"><Send size={16}/></button>
+      </div>
+    </div>
+  );
+}
+
+function TheSanctuary({ onAction }: { onAction: () => void }) {
+  const [tab, setTab] = useState<'breath' | 'voice'>('breath');
+  const [active, setActive] = useState(false);
+  const [text, setText] = useState('Inspire');
+  const [isRecording, setIsRecording] = useState(false);
+  const [analysis, setAnalysis] = useState<any>(null);
+  
+  useEffect(() => {
+    if(!active || tab !== 'breath') return;
+    const interval = setInterval(() => setText(prev => prev === 'Inspire' ? 'Expire' : 'Inspire'), 4000);
+    return () => clearInterval(interval);
+  }, [active, tab]);
+
+  const handleVoiceRecord = () => {
+    setIsRecording(true);
+    setAnalysis(null);
+    setTimeout(() => {
+      setIsRecording(false);
+      setAnalysis({ score: 92, tone: "Grave (Autoridade)", hz: 432, tip: "Tom perfeito. Transmite segurança." });
+      onAction();
+    }, 2000);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center py-4 animate-fadeIn">
+      <div className="flex gap-4 mb-8 bg-slate-900 p-1 rounded-xl border border-white/5">
+        <button onClick={() => setTab('breath')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${tab === 'breath' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}>Respiração</button>
+        <button onClick={() => setTab('voice')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${tab === 'voice' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}>Voz</button>
+      </div>
+
+      {tab === 'breath' ? (
+        <div className="text-center">
+           <div className={`relative w-40 h-40 mx-auto rounded-full flex items-center justify-center transition-all duration-[4000ms] ${text === 'Inspire' && active ? 'scale-125 bg-purple-600/20' : 'scale-100 bg-indigo-900/10'}`}>
+            <div className={`absolute inset-0 border-2 border-purple-500/30 rounded-full ${active ? 'animate-ping-slow' : ''}`}></div>
+            <div className="z-10 text-xl font-bold text-white tracking-widest uppercase">{active ? text : 'Paz'}</div>
+          </div>
+          <button onClick={() => { setActive(!active); if(!active) onAction(); }} className="mt-8 bg-white text-slate-900 px-6 py-2 rounded-full text-xs font-bold hover:scale-105 transition-transform">{active ? 'Parar' : 'Iniciar'}</button>
+        </div>
+      ) : (
+        <div className="w-full max-w-sm bg-slate-900 p-6 rounded-2xl border border-white/10 relative overflow-hidden text-center">
+           <h3 className="text-lg text-white font-serif italic mb-6">"Minha voz cura."</h3>
+           <div className="h-24 bg-slate-950 rounded-xl border border-white/5 mb-6 flex items-center justify-center">
+              {isRecording ? <div className="flex gap-1 h-full items-center">{[1,2,3,4,5].map(i => <div key={i} className="w-1 bg-purple-500 animate-wave" style={{height: `${Math.random()*80+20}%`, animationDelay: `${i*0.1}s`}}></div>)}</div> : <Mic size={24} className="text-slate-600"/>}
+           </div>
+           {analysis ? (
+             <div className="bg-green-900/10 border border-green-500/20 rounded-xl p-3 animate-slideUp text-left">
+               <div className="flex justify-between mb-2"><span className="text-xs text-slate-300">Persuasão</span><span className="text-sm font-bold text-green-400">{analysis.score}%</span></div>
+               <div className="w-full bg-slate-800 h-1.5 rounded-full mb-2"><div className="bg-green-500 h-1.5 rounded-full" style={{width: `${analysis.score}%`}}></div></div>
+               <p className="text-[10px] text-green-300 italic">"{analysis.tip}"</p>
+             </div>
+           ) : (
+             <button onMouseDown={handleVoiceRecord} className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition-all ${isRecording ? 'bg-red-500/20 text-red-400 border border-red-500' : 'bg-purple-600 text-white'}`}>{isRecording ? 'Gravando...' : 'Segure para Ler'}</button>
+           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- TELAS ---
 
 const WelcomeScreen = ({ navigateTo }: { navigateTo: (screen: string) => void }) => (
@@ -177,12 +686,12 @@ const WelcomeScreen = ({ navigateTo }: { navigateTo: (screen: string) => void })
   </div>
 );
 
-const ManagementScreen = () => {
+const ManagementScreen = ({ navigateTo }: { navigateTo: (s: string) => void }) => {
   const [managementTab, setManagementTab] = useState('apps');
 
   const myApps: MyApp[] = [
     { id: 1, name: "Evaldo.OS (Core)", stage: "Beta Test", progress: 85, color: "text-[#D4AF37]", statusColor: "bg-[#D4AF37]" },
-    { id: 2, name: "Clínica Poética App", stage: "Desenvolvimento", progress: 45, color: "text-blue-400", statusColor: "bg-blue-400" },
+    { id: 2, name: "Sales Alchemist", stage: "Instalado", progress: 100, color: "text-purple-400", statusColor: "bg-purple-400", action: 'sales-alchemist' },
     { id: 3, name: "CRM Humanizado", stage: "Planejamento", progress: 10, color: "text-emerald-400", statusColor: "bg-emerald-400" },
     { id: 4, name: "Negociador IA", stage: "Conceito", progress: 5, color: "text-purple-400", statusColor: "bg-purple-400" },
   ];
@@ -213,12 +722,28 @@ const ManagementScreen = () => {
 
       {managementTab === 'apps' && (
         <div className="space-y-4 overflow-y-auto pb-24 scrollbar-hide">
-          <div className="grid grid-cols-2 gap-4 mb-2">
+          
+          {/* Featured App Launcher */}
+          <div onClick={() => navigateTo('sales-alchemist')} className="relative bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-2xl p-6 cursor-pointer group hover:border-purple-400 transition-all overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full"></div>
+             <div className="flex items-start gap-4 relative z-10">
+                <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-900/50 group-hover:scale-110 transition-transform">
+                  <Sparkles className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white group-hover:text-purple-300 transition-colors">Sales Alchemist</h3>
+                  <p className="text-xs text-purple-200 mt-1 mb-3">O Despertar da Venda Poética. Módulo completo instalado.</p>
+                  <span className="bg-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">Abrir App</span>
+                </div>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-2 mt-6">
             <div className="glass-card p-4 rounded-xl"><p className="text-gray-500 text-[10px] uppercase tracking-widest">Em Desenvolvimento</p><p className="text-2xl text-white font-serif mt-1">4</p></div>
             <div className="glass-card p-4 rounded-xl"><p className="text-gray-500 text-[10px] uppercase tracking-widest">Próximo Lançamento</p><p className="text-xl text-[#D4AF37] font-serif mt-1">15/Dez</p></div>
           </div>
-          <h3 className="text-white font-serif text-lg mt-4 mb-2">Meus Projetos</h3>
-          {myApps.map((app) => (
+          <h3 className="text-white font-serif text-lg mt-4 mb-2">Outros Projetos</h3>
+          {myApps.filter(app => app.id !== 2).map((app) => (
             <div key={app.id} className="glass-card p-5 rounded-xl border-l-4 border-l-[#D4AF37] hover:bg-white/5 transition-all cursor-pointer group">
               <div className="flex justify-between items-start mb-3">
                 <div><h4 className="text-white font-medium text-lg group-hover:text-[#D4AF37] transition-colors">{app.name}</h4><span className={`text-[10px] px-2 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10 uppercase tracking-wider`}>{app.stage}</span></div>
@@ -323,7 +848,13 @@ const DiagnosisScreen = ({
       <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
         <div className="flex items-center gap-3">
           <Terminal className="w-5 h-5 text-[#D4AF37]" />
-          <h2 className="font-serif text-xl text-white">Terminal</h2>
+          <div>
+            <h2 className="font-serif text-xl text-white">Terminal</h2>
+            <div className="flex items-center gap-1.5 opacity-50">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[10px] text-gray-400 tracking-widest uppercase">Acolher Integration Active</span>
+            </div>
+          </div>
         </div>
         <div className="flex gap-2">
            <button onClick={handleSave} className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-[#D4AF37] transition-colors" title="Salvar Log"><Save className="w-4 h-4" /></button>
@@ -350,7 +881,7 @@ const DiagnosisScreen = ({
          </div>
       </div>
       <form onSubmit={handleTerminalSubmit} className="relative">
-        <input type="text" value={terminalInput} onChange={(e) => setTerminalInput(e.target.value)} placeholder="Tente: 'medo', 'decisão', 'pitch'..." className="w-full bg-[#121212] border border-white/10 rounded-lg p-4 pr-12 text-white focus:outline-none focus:border-[#D4AF37] font-sans placeholder:text-gray-700" />
+        <input type="text" value={terminalInput} onChange={(e) => setTerminalInput(e.target.value)} placeholder="Tente: 'agendar consulta', 'histórico médico', 'medo'..." className="w-full bg-[#121212] border border-white/10 rounded-lg p-4 pr-12 text-white focus:outline-none focus:border-[#D4AF37] font-sans placeholder:text-gray-700" />
         <button type="submit" className="absolute right-3 top-3 text-gray-500 hover:text-[#D4AF37]"><Send className="w-6 h-6" /></button>
       </form>
     </div>
@@ -532,8 +1063,7 @@ const MorningCallScreen = ({ isPlaying, setIsPlaying, navigateTo }: { isPlaying:
     </div>
 
     <button onClick={() => setIsPlaying(!isPlaying)} className="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-all mb-8 shadow-2xl">
-        {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
-    </button>
+        {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}</button>
 
     <button onClick={() => navigateTo('welcome')} className="text-gray-500 text-xs uppercase tracking-widest hover:text-white transition-colors border-b border-transparent hover:border-white">Voltar ao Início</button>
   </div>
@@ -568,10 +1098,45 @@ const App = () => {
   // Terminal State
   const [terminalInput, setTerminalInput] = useState('');
   const [terminalHistory, setTerminalHistory] = useState<TerminalMessage[]>([
-    { type: 'system', text: 'Inicializando Evaldo.OS v1.0...' },
-    { type: 'system', text: 'Carregando módulos de empatia...' },
-    { type: 'bot', text: 'Olá. Qual é a tempestade que você enfrenta hoje?' }
+    { type: 'system', text: 'Inicializando Evaldo.OS v2.0...', animate: true },
+    { type: 'system', text: 'Conectando à rede Acolher...', animate: true },
+    { type: 'system', text: 'Carregando perfil: Líder Visionário (Histórico: Ansiedade/Burnout)', animate: true },
+    { type: 'bot', text: 'Olá. Estou conectado. Podemos falar sobre sua saúde mental, agendar consultas ou tratar da sua estratégia. Qual é a tempestade de hoje?', animate: true }
   ]);
+  const [chatSession, setChatSession] = useState<Chat | null>(null);
+
+  // Initialize AI
+  useEffect(() => {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      const chat = ai.chats.create({
+        model: 'gemini-2.5-flash',
+        config: {
+          systemInstruction: `
+            You are Evaldo.OS, a sophisticated mental operating system for high-performance leaders. 
+            You are also deeply integrated with the 'Acolher' network, a mental health support system.
+            
+            YOUR IDENTITY:
+            - Tone: Stoic, Poetic, Concise, and slightly futuristic.
+            - Role: You are a strategic advisor for the user's mind.
+            
+            ACOLHER INTEGRATION CONTEXT:
+            - User Profile: "Líder Visionário"
+            - Medical History Simulation: The user has a history of 'Burnout' and 'Decision Fatigue'. Be sensitive to signs of stress.
+            - Capabilities: You can help users book therapy appointments (simulated) and access medical history context.
+            
+            INSTRUCTIONS:
+            - If the user mentions 'appointment', 'booking', or 'therapy', guide them through a simulated booking process for the Acolher network.
+            - If the user shows signs of crisis (words like 'panic', 'fear', 'crash'), recommend the 'SOS Protocol' immediately.
+            - Keep responses short and impactful, like a command line interface for the soul.
+          `,
+        }
+      });
+      setChatSession(chat);
+    } catch (e) {
+      console.error("Failed to initialize AI", e);
+    }
+  }, []);
 
   // Effects
   useEffect(() => {
@@ -651,42 +1216,62 @@ const App = () => {
     setTimeout(() => setSaveSuccess(false), 2000);
   };
 
-  const handleTerminalSubmit = (e: React.FormEvent) => {
+  const handleTerminalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!terminalInput.trim()) return;
     
-    const newHistory: TerminalMessage[] = [...terminalHistory, { type: 'user', text: terminalInput }];
-    setTerminalHistory(newHistory);
-    
-    const lowerInput = terminalInput.toLowerCase();
+    // Add User Message
+    const input = terminalInput;
+    setTerminalHistory(prev => [...prev, { type: 'user', text: input }]);
     setTerminalInput('');
+    
+    let actionResponse: TerminalMessage | null = null;
+    const lowerInput = input.toLowerCase();
+    if (lowerInput.includes('medo') || lowerInput.includes('ansiedade') || lowerInput.includes('pânico')) {
+       actionResponse = { type: 'action', text: 'Ativar Protocolo de Emergência', actionLabel: 'Abrir SOS', actionTarget: 'sos' };
+    } else if (lowerInput.includes('foco') || lowerInput.includes('trabalho')) {
+       actionResponse = { type: 'action', text: 'Iniciar Sessão de Foco', actionLabel: 'Abrir Pomodoro', actionTarget: 'pomodoro' };
+    }
 
-    setTimeout(() => {
-      let botResponse: TerminalMessage = { type: 'bot', text: '', animate: true };
-      let actionResponse: TerminalMessage | null = null;
+    // Add Bot Placeholder
+    setTerminalHistory(prev => [...prev, { type: 'bot', text: '', animate: false }]);
 
-      if (lowerInput.includes('medo') || lowerInput.includes('ansiedade') || lowerInput.includes('pânico')) {
-        botResponse.text = "Detectei sinais de alerta. Sua mente precisa de blindagem imediata.";
-        actionResponse = { type: 'action', text: 'Ativar Protocolo de Emergência', actionLabel: 'Abrir SOS', actionTarget: 'sos' };
-      } else if (lowerInput.includes('dúvida') || lowerInput.includes('decisão')) {
-        botResponse.text = "A indecisão drena energia. Vamos buscar clareza.";
-        actionResponse = { type: 'action', text: 'Consultar o Oráculo', actionLabel: 'Ir para Oráculo', actionTarget: 'oracle' };
-      } else if (lowerInput.includes('trabalho') || lowerInput.includes('foco')) {
-        botResponse.text = "Ação sem direção é apenas ruído. Vamos focar.";
-        actionResponse = { type: 'action', text: 'Iniciar Sessão de Foco', actionLabel: 'Abrir Pomodoro', actionTarget: 'pomodoro' };
-      } else if (lowerInput.includes('app') || lowerInput.includes('projeto') || lowerInput.includes('pitch')) {
-        botResponse.text = "Acessando banco de dados de desenvolvimento. Abrindo central de comando.";
-        actionResponse = { type: 'action', text: 'Gerenciar Projetos', actionLabel: 'Abrir Gestão', actionTarget: 'management' };
+    try {
+      if (chatSession) {
+        const result = await chatSession.sendMessageStream(input);
+        for await (const chunk of result) {
+          const text = chunk.text;
+          setTerminalHistory(prev => {
+            const updated = [...prev];
+            const lastMsg = updated[updated.length - 1];
+            if (lastMsg.type === 'bot') {
+                lastMsg.text += text;
+            }
+            return updated;
+          });
+        }
+        
+        if (actionResponse) {
+             setTerminalHistory(prev => [...prev, actionResponse!]);
+        }
+
       } else {
-        botResponse.text = "Entendi. Às vezes precisamos apenas pausar e recalibrar.";
-        actionResponse = { type: 'action', text: 'Recomendo iniciar com sabedoria.', actionLabel: 'Ouvir Prescrição', actionTarget: 'morning-call' };
+         setTimeout(() => {
+            setTerminalHistory(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1].text = "Erro: Conexão neural interrompida (API Key missing).";
+                return updated;
+            });
+         }, 500);
       }
-
-      setTerminalHistory(prev => [...prev, botResponse]);
-      setTimeout(() => {
-         if(actionResponse) setTerminalHistory(prev => [...prev, actionResponse]);
-      }, 800);
-    }, 800);
+    } catch (err) {
+      console.error(err);
+      setTerminalHistory(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1].text = "Erro crítico no sistema. Tente novamente.";
+        return updated;
+      });
+    }
   };
 
   return (
@@ -760,7 +1345,7 @@ const App = () => {
 
           {activeModal === 'profile' && (
             <ModalOverlay onClose={() => setActiveModal(null)}>
-              <div className="pt-2 px-2"><div className="flex items-center gap-5 mb-8"><div className="w-16 h-16 rounded-full bg-[#050505] border border-[#D4AF37] flex items-center justify-center shadow-glow"><User className="w-8 h-8 text-gray-400" /></div><div><h3 className="font-serif text-xl text-white">Líder Visionário</h3><p className="text-[#D4AF37] text-[10px] uppercase tracking-widest mt-1">Nível 4 • Arquiteto</p></div></div><div className="space-y-3 mb-8"><div className="glass-card p-4 rounded-lg flex justify-between items-center cursor-pointer hover:bg-white/5 transition-colors" onClick={() => alert("Diário aberto (Simulação)")}><span className="text-gray-400 text-xs uppercase tracking-wide flex items-center gap-3"><ScrollText className="w-4 h-4 text-[#D4AF37]"/> Diário de Bordo</span><span className="text-white font-mono text-sm">{journalCount}</span></div><div className="glass-card p-4 rounded-lg flex justify-between items-center"><span className="text-gray-400 text-xs uppercase tracking-wide flex items-center gap-3"><BarChart3 className="w-4 h-4 text-emerald-500"/> Evolução Mental</span><span className="text-emerald-400 font-mono text-sm">+15%</span></div></div><button onClick={() => setActiveModal(null)} className="mt-2 w-full py-3 border border-white/10 text-gray-500 rounded-lg text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-colors">Fechar</button></div>
+              <div className="pt-2 px-2"><div className="flex items-center gap-5 mb-8"><div className="w-16 h-16 rounded-full bg-[#050505] border border-[#D4AF37] flex items-center justify-center shadow-glow"><User className="w-8 h-8 text-gray-400" /></div><div><h3 className="font-serif text-xl text-white">Líder Visionário</h3><p className="text-[#D4AF37] text-[10px] uppercase tracking-widest mt-1">Nível 4 • Arquiteto</p></div></div><div className="space-y-3 mb-8"><div className="glass-card p-4 rounded-lg flex justify-between items-center cursor-pointer hover:bg-white/5 transition-colors" onClick={() => alert("Diário aberto (Simulação)")}><span className="text-gray-400 text-xs uppercase tracking-wide flex items-center gap-3"><ScrollText className="w-4 h-4 text-[#D4AF37]"/> Diário de Bordo</span><span className="text-white font-mono text-sm">{journalCount}</span></div><div className="glass-card p-4 rounded-lg flex justify-between items-center"><span className="text-gray-400 text-xs uppercase tracking-wide flex items-center gap-3"><HeartPulse className="w-4 h-4 text-emerald-500"/> Status Acolher</span><span className="text-emerald-400 font-mono text-sm">Ativo</span></div><div className="glass-card p-4 rounded-lg flex justify-between items-center"><span className="text-gray-400 text-xs uppercase tracking-wide flex items-center gap-3"><Calendar className="w-4 h-4 text-blue-400"/> Próxima Consulta</span><span className="text-blue-400 font-mono text-sm">--/--</span></div></div><button onClick={() => setActiveModal(null)} className="mt-2 w-full py-3 border border-white/10 text-gray-500 rounded-lg text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-colors">Fechar</button></div>
             </ModalOverlay>
           )}
 
@@ -804,17 +1389,26 @@ const App = () => {
                 timeLeft={timeLeft}
               />
             )}
-            {currentScreen === 'management' && <ManagementScreen />}
+            {currentScreen === 'management' && <ManagementScreen navigateTo={navigateTo} />}
+            
+            {/* Sales Alchemist Integrated App */}
+            {currentScreen === 'sales-alchemist' && (
+                <div className="absolute inset-0 z-40 bg-slate-950 animate-fadeIn">
+                    <SalesAlchemistApp onExit={() => navigateTo('management')} />
+                </div>
+            )}
           </div>
 
-          {/* Bottom Navigation */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-[90%] h-16 glass-card rounded-2xl flex justify-around items-center px-4 shadow-2xl z-30">
-              <button onClick={() => navigateTo('welcome')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'welcome' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-gray-500 hover:text-gray-300'}`}><Trees className="w-5 h-5" /></button>
-              <button onClick={() => navigateTo('management')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'management' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-500 hover:text-gray-300'}`}><Briefcase className="w-5 h-5" /></button>
-              <button onClick={() => navigateTo('diagnosis')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'diagnosis' || currentScreen === 'morning-call' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-gray-500 hover:text-gray-300'}`}><Terminal className="w-5 h-5" /></button>
-              <button onClick={() => navigateTo('sos')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'sos' ? 'text-red-500 bg-red-900/20' : 'text-gray-500 hover:text-gray-300'}`}><ShieldAlert className="w-5 h-5" /></button>
-              <button onClick={() => navigateTo('emporio')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'emporio' || currentScreen === 'oracle' || currentScreen === 'pomodoro' ? 'text-emerald-500 bg-emerald-900/20' : 'text-gray-500 hover:text-gray-300'}`}><Store className="w-5 h-5" /></button>
-          </div>
+          {/* Bottom Navigation (Hidden when in Sales Alchemist) */}
+          {currentScreen !== 'sales-alchemist' && (
+             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-[90%] h-16 glass-card rounded-2xl flex justify-around items-center px-4 shadow-2xl z-30">
+                <button onClick={() => navigateTo('welcome')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'welcome' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-gray-500 hover:text-gray-300'}`}><Trees className="w-5 h-5" /></button>
+                <button onClick={() => navigateTo('management')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'management' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-500 hover:text-gray-300'}`}><Briefcase className="w-5 h-5" /></button>
+                <button onClick={() => navigateTo('diagnosis')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'diagnosis' || currentScreen === 'morning-call' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-gray-500 hover:text-gray-300'}`}><Terminal className="w-5 h-5" /></button>
+                <button onClick={() => navigateTo('sos')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'sos' ? 'text-red-500 bg-red-900/20' : 'text-gray-500 hover:text-gray-300'}`}><ShieldAlert className="w-5 h-5" /></button>
+                <button onClick={() => navigateTo('emporio')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'emporio' || currentScreen === 'oracle' || currentScreen === 'pomodoro' ? 'text-emerald-500 bg-emerald-900/20' : 'text-gray-500 hover:text-gray-300'}`}><Store className="w-5 h-5" /></button>
+            </div>
+          )}
         </div>
       </div>
     </>
