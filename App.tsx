@@ -138,7 +138,7 @@ const GlobalStyles = () => (
     .animate-wave { animation: wave 1s ease-in-out infinite; }
     .animate-ping-slow { animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
     
-    .typing-cursor::after { content: '|'; animation: blink 1s step-start infinite; }
+    .typing-cursor::after { content: '▋'; animation: blink 1s step-start infinite; color: #D4AF37; margin-left: 2px; }
     @keyframes blink { 50% { opacity: 0; } }
 
     .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -161,22 +161,25 @@ const ModalOverlay = ({ children, onClose }: { children?: React.ReactNode, onClo
 
 const Typewriter = ({ text, onComplete }: { text: string, onComplete?: () => void }) => {
   const [displayedText, setDisplayedText] = useState('');
+  const [isTyping, setIsTyping] = useState(true);
   
   useEffect(() => {
     let index = 0;
     setDisplayedText('');
+    setIsTyping(true);
     const intervalId = setInterval(() => {
       index++;
       setDisplayedText(text.slice(0, index));
       if (index >= text.length) {
         clearInterval(intervalId);
+        setIsTyping(false);
         onComplete?.();
       }
-    }, 15);
+    }, 20); // Speed of typing
     return () => clearInterval(intervalId);
   }, [text]);
 
-  return <span>{displayedText}</span>;
+  return <span className={isTyping ? "typing-cursor" : ""}>{displayedText}</span>;
 };
 
 // --- LIBERDADE 360 CONSTANTS ---
@@ -1069,19 +1072,23 @@ const DiagnosisScreen = ({
       <div className="flex-1 glass-card rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col mb-4 bg-black/40">
          <div className="flex gap-2 mb-4 opacity-50"><div className="w-2 h-2 rounded-full bg-red-500"></div><div className="w-2 h-2 rounded-full bg-yellow-500"></div><div className="w-2 h-2 rounded-full bg-green-500"></div></div>
          <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide select-text">
-            {terminalHistory.map((msg, idx) => (
+            {terminalHistory.map((msg, idx) => {
+              // Apply typing cursor to the last message if it's from the bot, even if not animating with Typewriter (i.e. streaming)
+              const isLastBot = idx === terminalHistory.length - 1 && msg.type === 'bot';
+              
+              return (
               <div key={idx} className={`${msg.type === 'system' ? 'text-green-500' : msg.type === 'bot' ? 'text-[#F4E4BC]' : msg.type === 'action' ? 'text-[#D4AF37]' : 'text-white text-right'}`}>
                 {msg.type !== 'user' && <span className="mr-2 opacity-50 select-none">{'>'}</span>}
                 {msg.animate && msg.type !== 'user' ? (
                    <Typewriter text={msg.text} onComplete={() => finishAnimation(idx)} />
                 ) : (
-                   <span>{msg.text}</span>
+                   <span className={isLastBot ? "typing-cursor" : ""}>{msg.text}</span>
                 )}
                 {msg.type === 'action' && msg.actionTarget && (
                   <button onClick={() => navigateTo(msg.actionTarget!)} className="block mt-2 px-3 py-1 bg-[#D4AF37]/10 border border-[#D4AF37] text-[#D4AF37] text-xs rounded hover:bg-[#D4AF37] hover:text-black transition-colors flex items-center gap-2 select-none">{msg.actionLabel} <ArrowRight className="w-3 h-3" /></button>
                 )}
               </div>
-            ))}
+            )})}
             <div ref={messagesEndRef} />
          </div>
       </div>
