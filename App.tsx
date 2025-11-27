@@ -6,7 +6,9 @@ import {
   FileText, Layout, Presentation, Database, Sun, Trash2, HeartPulse, Calendar,
   Sparkles, MessageCircle, Mic, RefreshCw, Copy, Heart, ChevronRight, GraduationCap, 
   Lightbulb, CheckCircle2, XCircle, Eye, Music, Trophy, Flame, Feather, BarChart2, 
-  Volume2, Target, Gem, Mountain, Shield, Star
+  Volume2, Target, Gem, Mountain, Shield, Star, CheckSquare, Crown, Medal, VolumeX, 
+  Headphones, AlertTriangle, Thermometer, Ghost, Scale, Clock, List, Smile, ThumbsUp, 
+  Search, TrendingUp, Minimize2, Maximize2, Compass, AlertCircle, Type, Plus, ShoppingBag, Download
 } from 'lucide-react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
@@ -28,6 +30,10 @@ interface MyApp {
   color: string;
   statusColor: string;
   action?: string; // Action trigger for specific apps
+  price?: number;
+  installed?: boolean;
+  description?: string;
+  icon?: React.ElementType;
 }
 
 interface SOSItem {
@@ -44,6 +50,7 @@ interface SOSItem {
 interface Product {
   name: string;
   price: number;
+  id?: number; // Added optional ID for app purchases
 }
 
 interface Feature {
@@ -170,6 +177,203 @@ const Typewriter = ({ text, onComplete }: { text: string, onComplete?: () => voi
   }, [text]);
 
   return <span>{displayedText}</span>;
+};
+
+// --- LIBERDADE 360 CONSTANTS ---
+const L360_JOURNEY_PHASES = [
+  {
+    id: 1, title: "Fase 1: O Despertar", description: "Identificando as grades invisíveis.", status: "active",
+    steps: [{ id: 101, title: "Reconhecimento", type: "read", completed: true }, { id: 102, title: "Silenciando o Crítico", type: "tool", completed: false }]
+  },
+  {
+    id: 2, title: "Fase 2: Quebra de Padrões", description: "Interrompendo o ciclo vicioso.", status: "active",
+    steps: [{ id: 201, title: "Detox de Ambiente", type: "tool", completed: false }, { id: 202, title: "Antídoto da Comparação", type: "tool", completed: false }]
+  }
+];
+
+const L360_LIBRARY_CONTENT: Record<string, {title: string, content: string}> = {
+  'comparison': {
+    title: 'Como Vencer a Comparação',
+    content: `SOLUÇÃO PRÁTICA:\n\n1. O "Palco" vs "Bastidores": Lembre-se que você está comparando sua realidade completa com os melhores momentos editados de alguém.\n\n2. Converta Inveja em Mapa: Se você sente inveja, é porque aquela pessoa tem algo que você valoriza. Em vez de odiar, estude.\n\n3. A Regra do 1%: Sua única competição é o você de ontem.`
+  },
+  'sabotage': {
+    title: 'Como Quebrar a Auto-Sabotagem',
+    content: `SOLUÇÃO PRÁTICA:\n\n1. Engane o Medo: Seu cérebro teme grandes mudanças. Faça algo ridículo de pequeno.\n\n2. A Regra dos 5 Minutos: Prometa a si mesmo que fará a tarefa chata por apenas 5 minutos. Depois pode parar.\n\n3. Celebre o Esforço: Ao terminar, diga "Isso, venci!". Liberar dopamina no esforço reprograma o cérebro.`
+  }
+};
+
+const L360_BADGES = [
+  { id: 'first_step', title: 'O Despertar', desc: 'Completou a primeira ferramenta.', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-100' },
+  { id: 'executor', title: 'O Executor', desc: 'Completou 5 itens do plano de ação.', icon: CheckCircle2, color: 'text-blue-500', bg: 'bg-blue-100' },
+  { id: 'mind_master', title: 'Mente Mestra', desc: 'Silenciou o crítico 3 vezes.', icon: Crown, color: 'text-purple-500', bg: 'bg-purple-100' }
+];
+
+// --- LIBERDADE 360 APP COMPONENT ---
+const Liberdade360App = ({ onExit }: { onExit: () => void }) => {
+  const useStickyState = (defaultValue: any, key: string) => {
+    const [value, setValue] = useState(() => {
+      const stickyValue = window.localStorage.getItem(key);
+      return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+    });
+    useEffect(() => {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    }, [key, value]);
+    return [value, setValue];
+  };
+
+  const [userName, setUserName] = useStickyState('', 'l360_username');
+  const [onboardingDone, setOnboardingDone] = useStickyState(false, 'l360_onboarding');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTool, setActiveTool] = useState<string|null>(null); 
+  const [readingContent, setReadingContent] = useState<any>(null);
+  const [sosActive, setSosActive] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [streak, setStreak] = useStickyState(1, 'l360_streak');
+  const [largeText, setLargeText] = useState(false);
+  const [actionPlan, setActionPlan] = useStickyState([{ id: 1, text: 'Ouvir áudio sobre Auto-Sabotagem', completed: false, source: 'Biblioteca' }], 'l360_actions');
+  const [userBadges, setUserBadges] = useStickyState([], 'l360_badges');
+  const [toolsUsage, setToolsUsage] = useStickyState({ critic: 0, sabotage: 0, comparison: 0 }, 'l360_usage');
+  
+  // Tool States
+  const [criticStep, setCriticStep] = useState(0);
+  const [criticData, setCriticData] = useState({ negativeThought: '', criticName: '', newTruth: '' });
+  const [timerActive, setTimerActive] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(300);
+  const [microStep, setMicroStep] = useState('');
+  const [comparisonData, setComparisonData] = useState({ admiration: '' });
+  const [detoxItems, setDetoxItems] = useState([{ id: 1, name: '' }]);
+
+  const addToActionPlan = (text: string, source: string) => {
+    const newAction = { id: Date.now(), text, completed: false, source };
+    setActionPlan([newAction, ...actionPlan]);
+    setShowConfetti(true);
+    setTimeout(() => { setShowConfetti(false); setActiveTool(null); setActiveTab('actionPlan'); }, 1500);
+  };
+
+  const incrementToolUsage = (tool: string) => {
+    setToolsUsage({ ...toolsUsage, [tool]: toolsUsage[tool] + 1 });
+  };
+
+  const OnboardingView = () => {
+    const [name, setName] = useState('');
+    return (
+      <div className="absolute inset-0 z-50 bg-white flex items-center justify-center p-6 animate-fadeIn text-slate-900">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-blue-200"><Shield className="text-white" size={32} /></div>
+          <h1 className="text-3xl font-bold text-slate-900">Liberdade 360</h1>
+          <p className="text-slate-500">Seu sistema operacional para sair da prisão interior.</p>
+          <div className="text-left"><label className="block text-sm font-bold text-slate-700 mb-2">Como quer ser chamado?</label><input className="w-full border-2 border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500 text-slate-900" placeholder="Seu nome" value={name} onChange={e => setName(e.target.value)}/></div>
+          <button onClick={() => { if(name){ setUserName(name); setOnboardingDone(true); } }} disabled={!name} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition-all disabled:opacity-50">Começar Jornada</button>
+        </div>
+      </div>
+    );
+  };
+
+  const SOSView = () => {
+    const [breathState, setBreathState] = useState('Inspire');
+    const [scale, setScale] = useState(1);
+    useEffect(() => {
+      const cycle = () => { setBreathState('Inspire'); setScale(1.5); setTimeout(() => { setBreathState('Segure'); setScale(1.5); setTimeout(() => { setBreathState('Expire'); setScale(1); }, 4000); }, 4000); };
+      cycle(); const i = setInterval(cycle, 12000); return () => clearInterval(i);
+    }, []);
+    return (
+      <div className="absolute inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center text-white animate-fadeIn">
+        <button onClick={() => setSosActive(false)} className="absolute top-6 right-6 p-2 bg-white/10 rounded-full hover:bg-white/20"><X size={24} /></button>
+        <h2 className="text-2xl font-bold mb-8 tracking-wider">ACALME-SE AGORA</h2>
+        <div className="w-56 h-56 rounded-full border-4 border-white/30 flex items-center justify-center transition-all duration-[4000ms] ease-in-out relative" style={{ transform: `scale(${scale})` }}><div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl"></div><span className="text-xl font-medium tracking-widest uppercase">{breathState}</span></div>
+      </div>
+    );
+  };
+
+  const InnerCriticTool = () => {
+    return <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-slate-800"><div className="flex justify-between border-b pb-4"><h2 className="font-bold flex gap-2"><Zap className="text-blue-600"/> Silenciador</h2><button onClick={()=>setActiveTool(null)}><X/></button></div>
+    {criticStep===0 ? <div className="space-y-4"><p className="bg-blue-50 p-3 text-blue-800 rounded">Qual pensamento está te travando?</p><textarea className="w-full border p-3 rounded-xl bg-white text-slate-800" value={criticData.negativeThought} onChange={e=>setCriticData({...criticData, negativeThought:e.target.value})}/></div> :
+     criticStep===1 ? <div className="space-y-4"><p>Dê um nome bobo para ele.</p><input className="w-full border p-3 rounded-xl bg-white text-slate-800" placeholder="Nome do Crítico" value={criticData.criticName} onChange={e=>setCriticData({...criticData, criticName:e.target.value})}/></div> :
+     criticStep===2 ? <div className="space-y-4"><p>Isso é mentira. Prove.</p><textarea className="w-full border p-3 rounded-xl bg-white text-slate-800" placeholder="A verdade é que..." /></div> :
+     <div className="space-y-4"><p className="bg-green-50 p-3 text-green-800 rounded font-bold">Nova Verdade:</p><textarea className="w-full border p-3 rounded-xl font-medium bg-white text-slate-800" value={criticData.newTruth} onChange={e=>setCriticData({...criticData, newTruth:e.target.value})}/></div>}
+    <button onClick={()=>{if(criticStep<3)setCriticStep(criticStep+1); else { incrementToolUsage('critic'); addToActionPlan(`Repetir: ${criticData.newTruth}`, 'Silenciador'); }}} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold">{criticStep===3 ? "Finalizar & Agir" : "Próximo"}</button></div>;
+  };
+
+  const SabotageTool = () => {
+    useEffect(()=>{let i: any; if(timerActive && timeLeft>0) i=setInterval(()=>setTimeLeft(t=>t-1),1000); return ()=>clearInterval(i)},[timerActive,timeLeft]);
+    return <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-slate-800"><div className="flex justify-between border-b pb-4"><h2 className="font-bold flex gap-2"><Shield className="text-rose-600"/> Quebra de Sabotagem</h2><button onClick={()=>setActiveTool(null)}><X/></button></div>
+    <div className="bg-slate-50 p-6 text-center rounded-xl"><p className="mb-2 text-slate-600">Regra dos 5 minutos.</p><div className="text-4xl font-mono font-bold mb-4">{Math.floor(timeLeft/60)}:{(timeLeft%60).toString().padStart(2,'0')}</div><button onClick={()=>setTimerActive(!timerActive)} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">{timerActive?'Pausar':'Iniciar'}</button></div>
+    <div><p className="font-bold mb-2">Micro-Passo:</p><div className="flex gap-2"><input className="flex-1 border p-2 rounded bg-white text-slate-800" placeholder="Ex: Abrir o doc..." value={microStep} onChange={e=>setMicroStep(e.target.value)} /><button onClick={()=>{incrementToolUsage('sabotage'); addToActionPlan(`Executar: ${microStep}`, 'Quebra-Sabotagem')}} className="bg-indigo-600 text-white px-4 rounded font-bold">Agir</button></div></div></div>
+  };
+
+  const MainContent = () => {
+     if (activeTab === 'dashboard') return (
+       <div className="space-y-6 animate-fadeIn pb-24 text-slate-800">
+         <div className="bg-gradient-to-r from-slate-900 to-blue-900 rounded-2xl p-6 text-white shadow-xl">
+           <h2 className={`font-bold mb-1 ${largeText?'text-3xl':'text-2xl'}`}>Olá, {userName}</h2>
+           <p className="opacity-80 mb-4 text-sm">Você está no comando hoje.</p>
+           <div className="flex gap-3"><div className="bg-white/10 p-2 rounded-xl border border-white/20 flex items-center gap-2 flex-1"><Flame className="text-orange-400 w-4 h-4" /><div><p className="text-[10px] opacity-70">Sequência</p><p className="font-bold text-sm">{streak} dias</p></div></div><div className="bg-white/10 p-2 rounded-xl border border-white/20 flex items-center gap-2 flex-1"><CheckSquare className="text-green-400 w-4 h-4" /><div><p className="text-[10px] opacity-70">Ações</p><p className="font-bold text-sm">{actionPlan.filter((a:any)=>a.completed).length}</p></div></div></div>
+         </div>
+         <div><h3 className="font-bold text-slate-700 mb-3">Conquistas</h3><div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">{L360_BADGES.map(badge => { const unlocked = userBadges.includes(badge.id as never); return (<div key={badge.id} className={`min-w-[120px] p-3 rounded-xl border flex flex-col items-center text-center gap-2 ${unlocked ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-50 grayscale'}`}><div className={`p-2 rounded-full ${unlocked ? badge.bg + ' ' + badge.color : 'bg-slate-200 text-slate-400'}`}><badge.icon size={16} /></div><div><p className="font-bold text-xs text-slate-800">{badge.title}</p></div></div>)})}</div></div>
+         <h3 className="font-bold text-slate-700">Resolver Agora</h3>
+         <div className="grid grid-cols-1 gap-3"><button onClick={() => { setActiveTab('tools'); setActiveTool('sabotage'); }} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-rose-300 shadow-sm text-left flex items-center gap-4"><div className="bg-rose-100 p-2 rounded-full text-rose-500"><Shield size={20}/></div><div><h4 className="font-bold text-slate-800 text-sm">Procrastinação</h4><p className="text-xs text-slate-500">Ação de 5 min</p></div></button><button onClick={() => { setActiveTab('tools'); setActiveTool('critic'); }} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 shadow-sm text-left flex items-center gap-4"><div className="bg-blue-100 p-2 rounded-full text-blue-500"><Zap size={20}/></div><div><h4 className="font-bold text-slate-800 text-sm">Pensamento Negativo</h4><p className="text-xs text-slate-500">Silenciar Crítico</p></div></button></div>
+       </div>
+     );
+     if (activeTab === 'actionPlan') return (
+        <div className="space-y-4 animate-fadeIn pb-24 text-slate-800">
+           <div className="flex justify-between items-center"><h2 className="font-bold text-slate-800 text-xl">Plano de Ação</h2><button onClick={() => addToActionPlan("Nova ação rápida", "Manual")} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-2 text-xs hover:bg-blue-700"><Plus size={14}/> Add</button></div>
+           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">{actionPlan.map((action:any) => (<div key={action.id} onClick={() => setActionPlan(actionPlan.map((a:any) => a.id === action.id ? { ...a, completed: !a.completed } : a))} className={`p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 transition-colors ${action.completed ? 'bg-slate-50' : 'bg-white'}`}><div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${action.completed ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}>{action.completed && <CheckSquare size={12} className="text-white"/>}</div><div className="flex-1"><p className={`font-medium text-sm ${action.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{action.text}</p><span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{action.source}</span></div></div>))}</div>
+        </div>
+     );
+     if (activeTab === 'tools') {
+        if(activeTool === 'critic') return <InnerCriticTool/>;
+        if(activeTool === 'sabotage') return <SabotageTool/>;
+        return <div className="space-y-4 animate-fadeIn pb-24 text-slate-800"><h2 className="font-bold text-slate-800 text-xl">Ferramentas</h2><div className="grid grid-cols-1 gap-3">{[{id:'sabotage', title:'Quebrar Procrastinação', icon:Shield, color:'text-rose-600', bg:'bg-rose-100', desc:'Regra de 5 min.'}, {id:'critic', title:'Resolver Pensamentos', icon:Zap, color:'text-blue-600', bg:'bg-blue-100', desc:'Transformar crítica.'}, {id:'detox', title:'Limpar Ambiente', icon:Trash2, color:'text-red-600', bg:'bg-red-100', desc:'Remover tóxicos.'}].map(t => (<div key={t.id} onClick={() => setActiveTool(t.id)} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-400 shadow-sm cursor-pointer transition-all"><div className="flex items-center gap-3 mb-2"><div className={`${t.bg} ${t.color} p-2 rounded-lg`}><t.icon size={18}/></div><h3 className="font-bold text-slate-700 text-sm">{t.title}</h3></div><p className="text-xs text-slate-500">{t.desc}</p></div>))}</div></div>;
+     }
+     if (activeTab === 'library') return (
+        <div className="space-y-4 animate-fadeIn pb-24 text-slate-800"><h2 className="font-bold text-slate-800 text-xl">Biblioteca</h2><div className="grid grid-cols-1 gap-3">{Object.entries(L360_LIBRARY_CONTENT).map(([key, item]) => (<div key={key} onClick={() => setReadingContent(item)} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group"><h3 className="font-bold text-slate-800 text-sm group-hover:text-blue-600">{item.title}</h3><div className="flex items-center gap-2 mt-2 text-slate-500"><Headphones size={12}/><span className="text-[10px]">Ler/Ouvir</span></div></div>))}</div></div>
+     );
+     return null;
+  };
+
+  return (
+    <div className="h-full bg-slate-50 font-sans text-slate-900 flex flex-col overflow-hidden relative">
+      {!onboardingDone && <OnboardingView />}
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm shrink-0">
+        <div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"><Shield className="text-white" size={18}/></div><span className="font-bold text-lg text-slate-800">Liberdade 360</span></div>
+        <div className="flex gap-2">
+           <button onClick={() => setLargeText(!largeText)} className={`p-2 rounded-full ${largeText ? 'bg-blue-100 text-blue-600' : 'text-slate-500'}`}><Type size={20} /></button>
+           <button onClick={onExit} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200"><ArrowRight className="rotate-180" size={20}/></button>
+        </div>
+      </div>
+      
+      {/* Main Area */}
+      <main className="flex-1 overflow-y-auto p-4 scrollbar-hide"><MainContent/></main>
+      
+      {/* Bottom Nav */}
+      <div className="bg-white border-t border-slate-200 p-2 flex justify-around shrink-0">
+         {[
+            { id: 'dashboard', label: 'Painel', icon: Zap },
+            { id: 'actionPlan', label: 'Ação', icon: CheckSquare },
+            { id: 'tools', label: 'Ferramentas', icon: Shield },
+            { id: 'library', label: 'Biblioteca', icon: BookOpen },
+         ].map(item => (
+            <button key={item.id} onClick={() => { setActiveTab(item.id); setActiveTool(null); }} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${activeTab === item.id ? 'text-blue-600' : 'text-slate-400'}`}>
+              <item.icon size={20} /><span className="text-[10px] font-medium mt-1">{item.label}</span>
+            </button>
+         ))}
+         <button onClick={() => setSosActive(true)} className="flex flex-col items-center p-2 rounded-lg text-red-500"><AlertCircle size={20} /><span className="text-[10px] font-medium mt-1">SOS</span></button>
+      </div>
+
+      {showConfetti && <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center"><div className="text-6xl animate-bounce">🎉</div></div>}
+      {sosActive && <SOSView />}
+      {readingContent && (
+        <div className="absolute inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+           <div className="bg-white rounded-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl flex flex-col text-slate-800">
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10"><h3 className="font-bold flex items-center gap-2"><BookOpen className="text-blue-600" size={18}/> {readingContent.title}</h3><button onClick={() => setReadingContent(null)}><X size={20} className="text-slate-500"/></button></div>
+              <div className={`p-6 leading-relaxed whitespace-pre-line ${largeText ? 'text-lg' : 'text-sm'}`}>{readingContent.content}</div>
+              <div className="p-4 border-t border-slate-100 bg-slate-50"><button onClick={() => { setReadingContent(null); addToActionPlan(`Aplicar: ${readingContent.title}`, 'Biblioteca'); }} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm">Adicionar ao Plano</button></div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 // --- SALES ALCHEMIST APP COMPONENTS ---
@@ -686,15 +890,8 @@ const WelcomeScreen = ({ navigateTo }: { navigateTo: (screen: string) => void })
   </div>
 );
 
-const ManagementScreen = ({ navigateTo }: { navigateTo: (s: string) => void }) => {
+const ManagementScreen = ({ navigateTo, myApps, setMyApps, purchaseApp }: { navigateTo: (s: string) => void, myApps: MyApp[], setMyApps: any, purchaseApp: (id: number) => void }) => {
   const [managementTab, setManagementTab] = useState('apps');
-
-  const myApps: MyApp[] = [
-    { id: 1, name: "Evaldo.OS (Core)", stage: "Beta Test", progress: 85, color: "text-[#D4AF37]", statusColor: "bg-[#D4AF37]" },
-    { id: 2, name: "Sales Alchemist", stage: "Instalado", progress: 100, color: "text-purple-400", statusColor: "bg-purple-400", action: 'sales-alchemist' },
-    { id: 3, name: "CRM Humanizado", stage: "Planejamento", progress: 10, color: "text-emerald-400", statusColor: "bg-emerald-400" },
-    { id: 4, name: "Negociador IA", stage: "Conceito", progress: 5, color: "text-purple-400", statusColor: "bg-purple-400" },
-  ];
 
   const pitchModules = [
     { title: "1. O Conceito", content: "A Mente do Líder como Campo de Batalha. PCH (Poesia Cognitiva Hipnótica) aplicada à Alta Performance." },
@@ -714,46 +911,79 @@ const ManagementScreen = ({ navigateTo }: { navigateTo: (s: string) => void }) =
           <h2 className="font-serif text-2xl text-white">Central</h2>
         </div>
         <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
-          <button onClick={() => setManagementTab('apps')} className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${managementTab === 'apps' ? 'bg-[#D4AF37] text-black font-bold' : 'text-gray-400 hover:text-white'}`}>Apps</button>
+          <button onClick={() => setManagementTab('apps')} className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${managementTab === 'apps' ? 'bg-[#D4AF37] text-black font-bold' : 'text-gray-400 hover:text-white'}`}>Meus Apps</button>
+          <button onClick={() => setManagementTab('store')} className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${managementTab === 'store' ? 'bg-[#D4AF37] text-black font-bold' : 'text-gray-400 hover:text-white'}`}>Loja</button>
           <button onClick={() => setManagementTab('clinic')} className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${managementTab === 'clinic' ? 'bg-[#D4AF37] text-black font-bold' : 'text-gray-400 hover:text-white'}`}>Clínica</button>
-          <button onClick={() => setManagementTab('pitch')} className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${managementTab === 'pitch' ? 'bg-[#D4AF37] text-black font-bold' : 'text-gray-400 hover:text-white'}`}>Pitch</button>
         </div>
       </div>
 
       {managementTab === 'apps' && (
         <div className="space-y-4 overflow-y-auto pb-24 scrollbar-hide">
+          <div className="grid grid-cols-2 gap-4 mb-2">
+            <div className="glass-card p-4 rounded-xl"><p className="text-gray-500 text-[10px] uppercase tracking-widest">Instalados</p><p className="text-2xl text-white font-serif mt-1">{myApps.filter(a => a.installed).length}</p></div>
+            <div className="glass-card p-4 rounded-xl"><p className="text-gray-500 text-[10px] uppercase tracking-widest">Atualizações</p><p className="text-xl text-[#D4AF37] font-serif mt-1">Todas em dia</p></div>
+          </div>
           
-          {/* Featured App Launcher */}
-          <div onClick={() => navigateTo('sales-alchemist')} className="relative bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-2xl p-6 cursor-pointer group hover:border-purple-400 transition-all overflow-hidden">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full"></div>
-             <div className="flex items-start gap-4 relative z-10">
-                <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-900/50 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white group-hover:text-purple-300 transition-colors">Sales Alchemist</h3>
-                  <p className="text-xs text-purple-200 mt-1 mb-3">O Despertar da Venda Poética. Módulo completo instalado.</p>
-                  <span className="bg-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">Abrir App</span>
+          <h3 className="text-white font-serif text-lg mt-4 mb-2">Aplicativos Instalados</h3>
+          {myApps.filter(app => app.installed).map((app) => (
+             <div key={app.id} onClick={() => app.action && navigateTo(app.action)} className={`relative bg-gradient-to-br from-slate-900 to-black border border-white/10 rounded-xl p-5 cursor-pointer group hover:border-[#D4AF37]/50 transition-all ${app.action ? 'hover:shadow-[0_0_20px_rgba(212,175,55,0.1)]' : ''}`}>
+                <div className="flex items-start gap-4 relative z-10">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 ${app.statusColor}`}>
+                    {app.icon ? <app.icon className="w-6 h-6 text-white" /> : <Code2 className="w-6 h-6 text-white" />}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-white font-medium text-lg group-hover:text-[#D4AF37] transition-colors">{app.name}</h4>
+                    <p className="text-xs text-gray-500 mt-1">{app.stage} • {app.progress}%</p>
+                    {app.action && <span className="mt-3 inline-block bg-white/10 text-white px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider hover:bg-[#D4AF37] hover:text-black transition-colors">Abrir App</span>}
+                  </div>
                 </div>
              </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-2 mt-6">
-            <div className="glass-card p-4 rounded-xl"><p className="text-gray-500 text-[10px] uppercase tracking-widest">Em Desenvolvimento</p><p className="text-2xl text-white font-serif mt-1">4</p></div>
-            <div className="glass-card p-4 rounded-xl"><p className="text-gray-500 text-[10px] uppercase tracking-widest">Próximo Lançamento</p><p className="text-xl text-[#D4AF37] font-serif mt-1">15/Dez</p></div>
-          </div>
-          <h3 className="text-white font-serif text-lg mt-4 mb-2">Outros Projetos</h3>
-          {myApps.filter(app => app.id !== 2).map((app) => (
-            <div key={app.id} className="glass-card p-5 rounded-xl border-l-4 border-l-[#D4AF37] hover:bg-white/5 transition-all cursor-pointer group">
+          ))}
+          
+          <h3 className="text-white font-serif text-lg mt-6 mb-2">Em Desenvolvimento</h3>
+          {myApps.filter(app => !app.installed).map((app) => (
+            <div key={app.id} className="glass-card p-5 rounded-xl border-l-4 border-l-gray-700 opacity-60">
               <div className="flex justify-between items-start mb-3">
-                <div><h4 className="text-white font-medium text-lg group-hover:text-[#D4AF37] transition-colors">{app.name}</h4><span className={`text-[10px] px-2 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10 uppercase tracking-wider`}>{app.stage}</span></div>
-                <div className={`p-2 rounded-full bg-white/5 ${app.color}`}><Code2 className="w-5 h-5" /></div>
+                <div><h4 className="text-gray-400 font-medium text-lg">{app.name}</h4><span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-gray-500 border border-white/10 uppercase tracking-wider">{app.stage}</span></div>
               </div>
-              <div className="mt-4"><div className="flex justify-between text-xs text-gray-500 mb-1"><span>Progresso</span><span>{app.progress}%</span></div><div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className={`h-full ${app.statusColor}`} style={{ width: `${app.progress}%` }}></div></div></div>
             </div>
           ))}
-          <button className="w-full py-4 border border-dashed border-gray-700 text-gray-500 rounded-xl hover:border-[#D4AF37] hover:text-[#D4AF37] transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-widest mt-4">+ Novo Projeto</button>
         </div>
+      )}
+
+      {managementTab === 'store' && (
+         <div className="space-y-4 overflow-y-auto pb-24 scrollbar-hide">
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900 to-purple-900 mb-6 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+               <h3 className="text-xl font-bold text-white relative z-10">Marketplace</h3>
+               <p className="text-indigo-200 text-sm mt-1 relative z-10">Expanda seu sistema operacional mental.</p>
+            </div>
+            
+            {myApps.filter(app => !app.installed && app.price !== undefined).map(app => (
+               <div key={app.id} className="glass-card p-5 rounded-xl border border-white/10 hover:border-[#D4AF37] transition-all flex flex-col gap-4">
+                  <div className="flex gap-4">
+                     <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${app.statusColor}`}>
+                        {app.icon ? <app.icon className="w-8 h-8 text-white" /> : <Code2 className="w-8 h-8 text-white" />}
+                     </div>
+                     <div>
+                        <h4 className="text-white font-bold text-lg">{app.name}</h4>
+                        <p className="text-gray-400 text-xs mt-1 leading-relaxed">{app.description || "Ferramenta de alta performance para líderes."}</p>
+                     </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-white/5 pt-4">
+                     <div className="flex items-center gap-2"><span className="text-[#F4E4BC] font-mono font-bold">{app.price}</span> <span className="text-[10px] text-[#D4AF37] uppercase tracking-widest">Sementes</span></div>
+                     <button onClick={() => purchaseApp(app.id)} className="bg-white text-black px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-[#D4AF37] transition-colors flex items-center gap-2"><Download size={14}/> Instalar</button>
+                  </div>
+               </div>
+            ))}
+            
+             {myApps.filter(app => !app.installed && app.price !== undefined).length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                   <ShoppingBag size={48} className="mx-auto mb-4 opacity-20"/>
+                   <p>Você já possui todos os apps disponíveis.</p>
+                </div>
+             )}
+         </div>
       )}
 
       {managementTab === 'clinic' && (
@@ -766,32 +996,7 @@ const ManagementScreen = ({ navigateTo }: { navigateTo: (s: string) => void }) =
               <div className="space-y-3">
                   <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg"><span className="text-gray-400 text-sm flex items-center gap-2"><Users className="w-4 h-4"/> Membros Ativos</span><span className="text-white font-mono">842</span></div>
                   <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg"><span className="text-gray-400 text-sm flex items-center gap-2"><Activity className="w-4 h-4"/> Sessões PCH (Mês)</span><span className="text-white font-mono">3.2k</span></div>
-                  <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg"><span className="text-gray-400 text-sm flex items-center gap-2"><BarChart3 className="w-4 h-4"/> MRR (Receita)</span><span className="text-emerald-400 font-mono">R$ 42k</span></div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="glass-card p-4 rounded-xl flex flex-col items-center justify-center gap-3 hover:bg-white/5 cursor-pointer transition-all"><Database className="w-8 h-8 text-gray-400" /><span className="text-gray-300 text-xs text-center">Acervo de Poesias</span></div>
-              <div className="glass-card p-4 rounded-xl flex flex-col items-center justify-center gap-3 hover:bg-white/5 cursor-pointer transition-all"><Users className="w-8 h-8 text-gray-400" /><span className="text-gray-300 text-xs text-center">Base de Líderes</span></div>
-            </div>
-        </div>
-      )}
-
-      {managementTab === 'pitch' && (
-        <div className="space-y-4 overflow-y-auto pb-24 scrollbar-hide">
-            <div className="glass-card p-6 rounded-xl border border-white/10 bg-[#050505]">
-              <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center border border-white/20"><Presentation className="w-6 h-6 text-[#D4AF37]" /></div>
-                  <div><h3 className="text-white font-serif text-lg">Dossiê do Projeto</h3><p className="text-gray-500 text-xs">A Bíblia do Evaldo.OS</p></div>
-              </div>
-              <div className="space-y-4">
-                {pitchModules.map((mod, idx) => (
-                  <div key={idx} className="border-b border-white/5 pb-4 last:border-0">
-                    <h4 className="text-[#D4AF37] font-serif text-sm mb-1">{mod.title}</h4>
-                    <p className="text-gray-400 text-xs leading-relaxed">{mod.content}</p>
-                  </div>
-                ))}
-              </div>
-              <button className="w-full mt-6 py-3 bg-[#D4AF37] text-black font-bold rounded-lg text-xs uppercase tracking-widest hover:bg-[#F4E4BC] transition-all">Exportar PDF</button>
             </div>
         </div>
       )}
@@ -1079,6 +1284,15 @@ const App = () => {
   const [seeds, setSeeds] = useState(120); 
   const [journalCount, setJournalCount] = useState(12);
   
+  // Apps State
+  const [myApps, setMyApps] = useState<MyApp[]>([
+    { id: 1, name: "Evaldo.OS (Core)", stage: "Beta Test", progress: 85, color: "text-[#D4AF37]", statusColor: "bg-[#D4AF37]", installed: true },
+    { id: 2, name: "Sales Alchemist", stage: "Instalado", progress: 100, color: "text-purple-400", statusColor: "bg-purple-400", action: 'sales-alchemist', installed: true, icon: Sparkles, description: "O despertar da venda poética." },
+    { id: 3, name: "Liberdade 360", stage: "Disponível", progress: 0, color: "text-blue-400", statusColor: "bg-blue-400", action: 'liberdade-360', installed: false, price: 50, icon: Shield, description: "Saia da prisão interior e retome o controle." },
+    { id: 4, name: "CRM Humanizado", stage: "Planejamento", progress: 10, color: "text-emerald-400", statusColor: "bg-emerald-400", installed: false },
+    { id: 5, name: "Negociador IA", stage: "Conceito", progress: 5, color: "text-purple-400", statusColor: "bg-purple-400", installed: false },
+  ]);
+
   // Modal States
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [selectedSOS, setSelectedSOS] = useState<SOSItem | null>(null);
@@ -1181,6 +1395,11 @@ const App = () => {
     setPurchaseSuccess(false); 
     setActiveModal('purchase');
   };
+  
+  const purchaseApp = (id: number) => {
+      const app = myApps.find(a => a.id === id);
+      if(app) openPurchaseModal({ name: app.name, price: app.price || 50, id: app.id });
+  }
 
   const openFeaturePreview = (feature: Feature) => {
     setSelectedFeature(feature);
@@ -1201,6 +1420,12 @@ const App = () => {
     if (selectedProduct && seeds >= selectedProduct.price) {
       setSeeds(prev => prev - selectedProduct.price);
       setPurchaseSuccess(true);
+      
+      // Check if it's an app purchase
+      if (selectedProduct.id) {
+          setMyApps(prev => prev.map(app => app.id === selectedProduct.id ? { ...app, installed: true } : app));
+      }
+      
       setTimeout(() => {
         setActiveModal(null);
         setPurchaseSuccess(false);
@@ -1321,9 +1546,9 @@ const App = () => {
           {activeModal === 'purchase' && selectedProduct && (
             <ModalOverlay onClose={() => setActiveModal(null)}>
               {purchaseSuccess ? (
-                <div className="text-center pt-8 pb-4 animate-fadeIn"><div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6"><Check className="w-8 h-8 text-emerald-500 animate-slideUp" /></div><h3 className="font-serif text-xl text-white mb-2">Aquisição Confirmada</h3><p className="text-gray-400 text-sm">Sua ferramenta foi desbloqueada.</p></div>
+                <div className="text-center pt-8 pb-4 animate-fadeIn"><div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6"><Check className="w-8 h-8 text-emerald-500 animate-slideUp" /></div><h3 className="font-serif text-xl text-white mb-2">{selectedProduct.id ? 'App Instalado' : 'Aquisição Confirmada'}</h3><p className="text-gray-400 text-sm">Sua ferramenta foi desbloqueada.</p></div>
               ) : (
-                <div className="text-center pt-2 px-2"><div className="w-12 h-12 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-6"><Store className="w-6 h-6 text-[#D4AF37]" /></div><h3 className="font-serif text-2xl text-white mb-2">Confirmar Aquisição</h3><p className="text-gray-400 text-sm mb-8 font-light">Investir <strong className="text-white">{selectedProduct.price} sementes</strong> para desbloquear <br/>"{selectedProduct.name}"?</p><div className="flex gap-3"><button onClick={() => setActiveModal(null)} className="flex-1 py-3 border border-white/10 rounded-lg text-gray-400 text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-all">Cancelar</button><button onClick={confirmPurchase} className="flex-1 py-3 bg-[#D4AF37] text-black rounded-lg text-xs uppercase tracking-widest hover:bg-[#F4E4BC] transition-all font-bold">Confirmar</button></div></div>
+                <div className="text-center pt-2 px-2"><div className="w-12 h-12 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-6"><Store className="w-6 h-6 text-[#D4AF37]" /></div><h3 className="font-serif text-2xl text-white mb-2">Confirmar Aquisição</h3><p className="text-gray-400 text-sm mb-8 font-light">Investir <strong className="text-white">{selectedProduct.price} sementes</strong> para {selectedProduct.id ? 'instalar' : 'desbloquear'} <br/>"{selectedProduct.name}"?</p><div className="flex gap-3"><button onClick={() => setActiveModal(null)} className="flex-1 py-3 border border-white/10 rounded-lg text-gray-400 text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-all">Cancelar</button><button onClick={confirmPurchase} className="flex-1 py-3 bg-[#D4AF37] text-black rounded-lg text-xs uppercase tracking-widest hover:bg-[#F4E4BC] transition-all font-bold">Confirmar</button></div></div>
               )}
             </ModalOverlay>
           )}
@@ -1389,7 +1614,7 @@ const App = () => {
                 timeLeft={timeLeft}
               />
             )}
-            {currentScreen === 'management' && <ManagementScreen navigateTo={navigateTo} />}
+            {currentScreen === 'management' && <ManagementScreen navigateTo={navigateTo} myApps={myApps} setMyApps={setMyApps} purchaseApp={purchaseApp} />}
             
             {/* Sales Alchemist Integrated App */}
             {currentScreen === 'sales-alchemist' && (
@@ -1397,10 +1622,16 @@ const App = () => {
                     <SalesAlchemistApp onExit={() => navigateTo('management')} />
                 </div>
             )}
+             {/* Liberdade 360 Integrated App */}
+            {currentScreen === 'liberdade-360' && (
+                <div className="absolute inset-0 z-40 bg-slate-50 animate-fadeIn">
+                    <Liberdade360App onExit={() => navigateTo('management')} />
+                </div>
+            )}
           </div>
 
-          {/* Bottom Navigation (Hidden when in Sales Alchemist) */}
-          {currentScreen !== 'sales-alchemist' && (
+          {/* Bottom Navigation (Hidden when in Full Apps) */}
+          {currentScreen !== 'sales-alchemist' && currentScreen !== 'liberdade-360' && (
              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-[90%] h-16 glass-card rounded-2xl flex justify-around items-center px-4 shadow-2xl z-30">
                 <button onClick={() => navigateTo('welcome')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'welcome' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-gray-500 hover:text-gray-300'}`}><Trees className="w-5 h-5" /></button>
                 <button onClick={() => navigateTo('management')} className={`p-2.5 rounded-xl transition-all ${currentScreen === 'management' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-500 hover:text-gray-300'}`}><Briefcase className="w-5 h-5" /></button>
