@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Wind, ShieldAlert, Store, BookOpen, Brain, Battery, Zap, Activity, 
@@ -147,6 +148,92 @@ const GlobalStyles = () => (
     .shadow-glow { box-shadow: 0 0 15px rgba(212,175,55,0.2); }
   `}</style>
 );
+
+// --- LANDING PAGE COMPONENTS ---
+
+const LandingPage = ({ onLaunch }: { onLaunch: () => void }) => {
+  return (
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#D4AF37] selection:text-black overflow-x-hidden">
+      {/* Navbar */}
+      <nav className="fixed w-full z-50 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-[#D4AF37] to-[#8c7324] rounded-lg flex items-center justify-center">
+                    <Brain className="text-black w-5 h-5" />
+                </div>
+                <span className="font-serif text-xl tracking-tight">Evaldo<span className="text-[#D4AF37]">.OS</span></span>
+            </div>
+            {/* CTA */}
+            <button onClick={onLaunch} className="bg-white text-black px-6 py-2 rounded-full text-sm font-bold hover:bg-[#D4AF37] transition-colors">
+                Launch OS
+            </button>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="pt-32 pb-20 px-6 max-w-7xl mx-auto text-center relative">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#D4AF37] opacity-[0.03] blur-[120px] rounded-full pointer-events-none"></div>
+          
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[#D4AF37] text-xs font-medium mb-8 animate-fadeIn">
+            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
+            System v2.0 Live
+          </div>
+          
+          <h1 className="font-serif text-5xl md:text-7xl leading-tight mb-8 animate-slideUp">
+            The Operating System <br/> for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F4E4BC]">High-Performance Minds</span>
+          </h1>
+          
+          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed animate-slideUp" style={{animationDelay: '0.1s'}}>
+             Blind your mind against burnout, paralysis, and chaos. A suite of cognitive tools designed for visionary leaders.
+          </p>
+          
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 animate-slideUp" style={{animationDelay: '0.2s'}}>
+             <button onClick={onLaunch} className="w-full md:w-auto px-8 py-4 bg-[#D4AF37] text-black rounded-xl font-bold text-lg hover:bg-[#F4E4BC] transition-all flex items-center justify-center gap-2">
+                <Terminal size={20} /> Initialize System
+             </button>
+             <button className="w-full md:w-auto px-8 py-4 bg-white/5 text-white border border-white/10 rounded-xl font-medium hover:bg-white/10 transition-all">
+                View Documentation
+             </button>
+          </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="py-20 px-6 max-w-7xl mx-auto border-t border-white/5">
+         <div className="grid md:grid-cols-3 gap-8">
+            <FeatureCard 
+                icon={Sparkles}
+                title="Sales Alchemist"
+                desc="Transmute objection into opportunity using poetic cognition and sensory loops."
+                color="text-purple-400"
+            />
+            <FeatureCard 
+                icon={Shield}
+                title="Liberdade 360"
+                desc="Identify invisible prisons and break the cycle of self-sabotage."
+                color="text-blue-400"
+            />
+            <FeatureCard 
+                icon={Terminal}
+                title="Neural Terminal"
+                desc="Direct command line to your subconscious for diagnosis and decision making."
+                color="text-[#D4AF37]"
+            />
+         </div>
+      </section>
+    </div>
+  )
+}
+
+const FeatureCard = ({ icon: Icon, title, desc, color }: any) => (
+  <div className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-white/10 transition-colors group">
+     <div className={`w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ${color}`}>
+        <Icon size={24} />
+     </div>
+     <h3 className="font-serif text-xl text-white mb-3">{title}</h3>
+     <p className="text-gray-400 leading-relaxed text-sm">{desc}</p>
+  </div>
+)
 
 // --- COMPONENTES AUXILIARES ---
 
@@ -1284,6 +1371,9 @@ const MorningCallScreen = ({ isPlaying, setIsPlaying, navigateTo }: { isPlaying:
 // --- MAIN APP ---
 
 const App = () => {
+  const [viewMode, setViewMode] = useState<'landing' | 'os'>('landing');
+
+  // Evaldo.OS Logic
   const [currentScreen, setCurrentScreen] = useState('welcome');
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -1506,16 +1596,27 @@ const App = () => {
     }
   };
 
+  if (viewMode === 'landing') {
+    return <LandingPage onLaunch={() => setViewMode('os')} />;
+  }
+
   return (
     <>
       <GlobalStyles />
-      <div className="flex items-center justify-center min-h-screen bg-[#020202] font-sans selection:bg-[#D4AF37] selection:text-black bg-grid">
-        <div className="w-full max-w-md h-[850px] bg-[#050505] relative shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden border border-white/5 sm:rounded-[2.5rem]">
+      <div className="flex items-center justify-center min-h-screen bg-[#020202] font-sans selection:bg-[#D4AF37] selection:text-black bg-grid overflow-hidden">
+        {/* Desktop Background Elements */}
+        <div className="fixed inset-0 pointer-events-none hidden md:block">
+           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-[#050505] via-transparent to-[#050505] z-10"></div>
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#D4AF37] opacity-[0.02] blur-[150px] rounded-full"></div>
+        </div>
+
+        {/* OS Container - Mobile Full / Desktop Window */}
+        <div className="w-full h-full md:max-w-[420px] md:h-[85vh] md:max-h-[900px] bg-[#050505] relative shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden border-0 md:border md:border-white/10 md:rounded-[2.5rem] z-20 flex flex-col transition-all duration-500 animate-slideUp">
           {/* Top Bar */}
-          <div className="absolute top-0 w-full h-20 flex justify-between items-end pb-4 px-6 z-20 bg-gradient-to-b from-[#050505] via-[#050505]/90 to-transparent">
-            <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-400 hover:text-[#D4AF37] transition-colors"><Menu className="w-6 h-6" /></button>
+          <div className="absolute top-0 w-full h-20 flex justify-between items-end pb-4 px-6 z-20 bg-gradient-to-b from-[#050505] via-[#050505]/90 to-transparent pointer-events-none">
+            <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-400 hover:text-[#D4AF37] transition-colors pointer-events-auto"><Menu className="w-6 h-6" /></button>
             <div className="flex gap-2 mb-1.5"><Brain className="w-5 h-5 text-[#D4AF37] opacity-50" /></div>
-            <button onClick={openProfile} className="text-gray-400 hover:text-[#D4AF37] transition-colors relative"><User className="w-6 h-6" />{journalCount > 12 && <div className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>}</button>
+            <button onClick={openProfile} className="text-gray-400 hover:text-[#D4AF37] transition-colors relative pointer-events-auto"><User className="w-6 h-6" />{journalCount > 12 && <div className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>}</button>
           </div>
 
           {/* Side Menu */}
@@ -1530,7 +1631,7 @@ const App = () => {
                  <button onClick={() => navigateTo('emporio')} className="text-left hover:text-emerald-500 transition-colors">Sua Jornada</button>
                  <div className="h-px bg-white/10 my-4 w-12"></div>
                  <button onClick={openManifesto} className="text-left text-lg text-[#D4AF37] flex items-center gap-3 font-sans uppercase tracking-widest"><ScrollText className="w-4 h-4" /> Manifesto</button>
-                 <button onClick={openProfile} className="text-left text-lg text-gray-600 hover:text-white transition-colors font-sans uppercase tracking-widest">Perfil</button>
+                 <button onClick={() => setViewMode('landing')} className="text-left text-lg text-gray-600 hover:text-white transition-colors font-sans uppercase tracking-widest flex items-center gap-2"><ArrowRight className="w-4 h-4 rotate-180" /> Sair do Sistema</button>
                </nav>
             </div>
           )}
