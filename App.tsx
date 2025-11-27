@@ -9,7 +9,8 @@ import {
   Lightbulb, CheckCircle2, XCircle, Eye, Music, Trophy, Flame, Feather, BarChart2, 
   Volume2, Target, Gem, Mountain, Shield, Star, CheckSquare, Crown, Medal, VolumeX, 
   Headphones, AlertTriangle, Thermometer, Ghost, Scale, Clock, List, Smile, ThumbsUp, 
-  Search, TrendingUp, Minimize2, Maximize2, Compass, AlertCircle, Type, Plus, ShoppingBag, Download
+  Search, TrendingUp, Minimize2, Maximize2, Compass, AlertCircle, Type, Plus, ShoppingBag, Download,
+  Layers, Zap as ZapIcon, Focus
 } from 'lucide-react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
@@ -177,64 +178,121 @@ const LandingPage = ({ onLaunch }: { onLaunch: () => void }) => {
             </div>
             {/* CTA */}
             <button onClick={onLaunch} className="bg-white text-black px-6 py-2 rounded-full text-sm font-bold hover:bg-[#D4AF37] transition-colors">
-                Launch OS
+                Entrar no Painel
             </button>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 max-w-7xl mx-auto text-center relative">
+      <section className="pt-32 pb-16 px-6 max-w-7xl mx-auto text-center relative">
           <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#D4AF37] opacity-[0.03] blur-[120px] rounded-full pointer-events-none"></div>
           
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[#D4AF37] text-xs font-medium mb-8 animate-fadeIn">
             <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
-            System v2.0 Live
+            Sistema 2.0 Disponível
           </div>
           
-          <h1 className="font-serif text-5xl md:text-7xl leading-tight mb-8 animate-slideUp">
-            The Operating System <br/> for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F4E4BC]">High-Performance Minds</span>
+          <h1 className="font-serif text-4xl md:text-6xl leading-tight mb-6 animate-slideUp max-w-4xl mx-auto">
+             Evaldo.OS: um painel para <span className="text-[#D4AF37]">organizar o seu negócio</span> em um só lugar.
           </h1>
           
-          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed animate-slideUp" style={{animationDelay: '0.1s'}}>
-             Blind your mind against burnout, paralysis, and chaos. A suite of cognitive tools designed for visionary leaders.
+          <p className="text-gray-400 text-lg md:text-xl max-w-3xl mx-auto mb-10 leading-relaxed animate-slideUp" style={{animationDelay: '0.1s'}}>
+             Empresários e empreendedores ganham clareza, foco e tempo com um painel único para tarefas, metas e indicadores do negócio.
           </p>
           
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 animate-slideUp" style={{animationDelay: '0.2s'}}>
-             <button onClick={onLaunch} className="w-full md:w-auto px-8 py-4 bg-[#D4AF37] text-black rounded-xl font-bold text-lg hover:bg-[#F4E4BC] transition-all flex items-center justify-center gap-2">
-                <Terminal size={20} /> Initialize System
-             </button>
-             <button className="w-full md:w-auto px-8 py-4 bg-white/5 text-white border border-white/10 rounded-xl font-medium hover:bg-white/10 transition-all">
-                View Documentation
+             <button onClick={onLaunch} className="w-full md:w-auto px-8 py-4 bg-[#D4AF37] text-black rounded-xl font-bold text-lg hover:bg-[#F4E4BC] transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.3)]">
+                Quero testar o Evaldo.OS <ArrowRight size={20}/>
              </button>
           </div>
       </section>
 
-      {/* Features Grid */}
+      {/* O que é o Evaldo.OS */}
       <section className="py-20 px-6 max-w-7xl mx-auto border-t border-white/5">
+         <div className="bg-[#0A0A0A] border border-white/5 rounded-3xl p-8 md:p-12 text-center max-w-4xl mx-auto">
+            <h2 className="font-serif text-3xl text-white mb-6">O que é o Evaldo.OS</h2>
+            <p className="text-gray-400 text-lg leading-relaxed">
+               É um painel digital inteligente projetado para eliminar o caos operacional. 
+               Ele centraliza a gestão do seu negócio, reunindo controle de tarefas, 
+               acompanhamento de metas estratégicas e monitoramento de indicadores 
+               em uma interface desenhada para a clareza mental do líder.
+            </p>
+         </div>
+      </section>
+
+      {/* Para quem é */}
+      <section className="py-20 px-6 max-w-7xl mx-auto">
+         <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl text-white mb-4">Para quem é</h2>
+            <p className="text-gray-500">Desenvolvido para quem constrói e lidera.</p>
+         </div>
+         <div className="grid md:grid-cols-3 gap-6">
+            <TargetAudienceCard 
+               icon={Store} 
+               title="Donos de Pequenos Negócios" 
+               desc="Que precisam profissionalizar a gestão sem burocracia excessiva." 
+            />
+            <TargetAudienceCard 
+               icon={User} 
+               title="Empreendedores Solo" 
+               desc="Que fazem tudo sozinhos e precisam de um 'segundo cérebro' para organizar o dia." 
+            />
+            <TargetAudienceCard 
+               icon={Users} 
+               title="Gestores de Times" 
+               desc="Que precisam alinhar a equipe e acompanhar o progresso real dos projetos." 
+            />
+         </div>
+      </section>
+
+      {/* Benefícios */}
+      <section className="py-20 px-6 max-w-7xl mx-auto bg-gradient-to-b from-transparent to-[#0A0A0A]">
+         <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl text-white mb-4">Benefícios</h2>
+            <p className="text-gray-500">O impacto de um sistema organizado.</p>
+         </div>
          <div className="grid md:grid-cols-3 gap-8">
             <FeatureCard 
-                icon={Sparkles}
-                title="Sales Alchemist"
-                desc="Transmute objection into opportunity using poetic cognition and sensory loops."
-                color="text-purple-400"
+                icon={Layers}
+                title="Mais Controle"
+                desc="Visualize todas as frentes do seu negócio em uma única tela, sem alternar entre dezenas de abas."
+                color="text-[#D4AF37]"
             />
             <FeatureCard 
-                icon={Shield}
-                title="Liberdade 360"
-                desc="Identify invisible prisons and break the cycle of self-sabotage."
+                icon={Focus}
+                title="Menos Caos"
+                desc="Transforme a sobrecarga de informações em processos estruturados e listas de ação claras."
                 color="text-blue-400"
             />
             <FeatureCard 
-                icon={Terminal}
-                title="Neural Terminal"
-                desc="Direct command line to your subconscious for diagnosis and decision making."
-                color="text-[#D4AF37]"
+                icon={ZapIcon}
+                title="Decisões Rápidas"
+                desc="Com indicadores visíveis e mente organizada, você decide com velocidade e precisão."
+                color="text-emerald-400"
             />
          </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="py-20 px-6 text-center">
+         <h2 className="font-serif text-3xl text-white mb-8">Pronto para organizar seu negócio?</h2>
+         <button onClick={onLaunch} className="px-8 py-4 bg-white/5 border border-white/20 text-white rounded-xl font-bold text-lg hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37] transition-all">
+            Acessar Painel Agora
+         </button>
       </section>
     </div>
   )
 }
+
+const TargetAudienceCard = ({ icon: Icon, title, desc }: any) => (
+  <div className="p-8 rounded-2xl bg-[#080808] border border-white/5 flex flex-col items-center text-center hover:border-[#D4AF37]/30 transition-all">
+      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
+         <Icon className="w-8 h-8 text-[#D4AF37]" />
+      </div>
+      <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
+      <p className="text-gray-400 text-sm">{desc}</p>
+  </div>
+)
 
 const FeatureCard = ({ icon: Icon, title, desc, color }: any) => (
   <div className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-white/10 transition-colors group">
