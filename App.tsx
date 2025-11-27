@@ -13,6 +13,17 @@ import {
 } from 'lucide-react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
+// --- HELPERS ---
+
+// Safe access to process.env for Vercel/Vite environments
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch (e) {
+    return '';
+  }
+};
+
 // --- TYPES & INTERFACES ---
 
 interface TerminalMessage {
@@ -399,7 +410,7 @@ const Liberdade360App = ({ onExit }: { onExit: () => void }) => {
            <p className="opacity-80 mb-4 text-sm">Você está no comando hoje.</p>
            <div className="flex gap-3"><div className="bg-white/10 p-2 rounded-xl border border-white/20 flex items-center gap-2 flex-1"><Flame className="text-orange-400 w-4 h-4" /><div><p className="text-[10px] opacity-70">Sequência</p><p className="font-bold text-sm">{streak} dias</p></div></div><div className="bg-white/10 p-2 rounded-xl border border-white/20 flex items-center gap-2 flex-1"><CheckSquare className="text-green-400 w-4 h-4" /><div><p className="text-[10px] opacity-70">Ações</p><p className="font-bold text-sm">{actionPlan.filter((a:any)=>a.completed).length}</p></div></div></div>
          </div>
-         <div><h3 className="font-bold text-slate-700 mb-3">Conquistas</h3><div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">{L360_BADGES.map(badge => { const unlocked = userBadges.includes(badge.id as never); return (<div key={badge.id} className={`min-w-[120px] p-3 rounded-xl border flex flex-col items-center text-center gap-2 ${unlocked ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-50 grayscale'}`}><div className={`p-2 rounded-full ${unlocked ? badge.bg + ' ' + badge.color : 'bg-slate-200 text-slate-400'}`}><badge.icon size={16} /></div><div><p className="font-bold text-xs text-slate-800">{badge.title}</p></div></div>)})}</div></div>
+         <div><h3 className="font-bold text-slate-700 mb-3">Conquistas</h3><div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">{L360_BADGES.map(badge => { const unlocked = userBadges.includes(badge.id as any); return (<div key={badge.id} className={`min-w-[120px] p-3 rounded-xl border flex flex-col items-center text-center gap-2 ${unlocked ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-50 grayscale'}`}><div className={`p-2 rounded-full ${unlocked ? badge.bg + ' ' + badge.color : 'bg-slate-200 text-slate-400'}`}><badge.icon size={16} /></div><div><p className="font-bold text-xs text-slate-800">{badge.title}</p></div></div>)})}</div></div>
          <h3 className="font-bold text-slate-700">Resolver Agora</h3>
          <div className="grid grid-cols-1 gap-3"><button onClick={() => { setActiveTab('tools'); setActiveTool('sabotage'); }} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-rose-300 shadow-sm text-left flex items-center gap-4"><div className="bg-rose-100 p-2 rounded-full text-rose-500"><Shield size={20}/></div><div><h4 className="font-bold text-slate-800 text-sm">Procrastinação</h4><p className="text-xs text-slate-500">Ação de 5 min</p></div></button><button onClick={() => { setActiveTab('tools'); setActiveTool('critic'); }} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 shadow-sm text-left flex items-center gap-4"><div className="bg-blue-100 p-2 rounded-full text-blue-500"><Zap size={20}/></div><div><h4 className="font-bold text-slate-800 text-sm">Pensamento Negativo</h4><p className="text-xs text-slate-500">Silenciar Crítico</p></div></button></div>
        </div>
@@ -1419,7 +1430,8 @@ const App = () => {
   // Initialize AI
   useEffect(() => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      const apiKey = getApiKey();
+      const ai = new GoogleGenAI({ apiKey });
       const chat = ai.chats.create({
         model: 'gemini-2.5-flash',
         config: {
@@ -1610,8 +1622,8 @@ const App = () => {
            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#D4AF37] opacity-[0.02] blur-[150px] rounded-full"></div>
         </div>
 
-        {/* OS Container - Mobile Full / Desktop Window */}
-        <div className="w-full h-full md:max-w-[420px] md:h-[85vh] md:max-h-[900px] bg-[#050505] relative shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden border-0 md:border md:border-white/10 md:rounded-[2.5rem] z-20 flex flex-col transition-all duration-500 animate-slideUp">
+        {/* OS Container - Responsive & Expansive */}
+        <div className="w-full h-full md:max-w-7xl md:h-[90vh] bg-[#050505] relative shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden border-0 md:border md:border-white/10 md:rounded-[2rem] z-20 flex flex-col transition-all duration-500 animate-slideUp">
           {/* Top Bar */}
           <div className="absolute top-0 w-full h-20 flex justify-between items-end pb-4 px-6 z-20 bg-gradient-to-b from-[#050505] via-[#050505]/90 to-transparent pointer-events-none">
             <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-400 hover:text-[#D4AF37] transition-colors pointer-events-auto"><Menu className="w-6 h-6" /></button>
